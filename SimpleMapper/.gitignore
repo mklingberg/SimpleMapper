@@ -228,7 +228,3 @@ $RECYCLE.BIN/
 *.msi
 *.msm
 *.msp
-.svn/entries
-.svn/format
-*.svn-base
-.svn/wc.db
