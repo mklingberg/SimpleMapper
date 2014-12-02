@@ -12,7 +12,7 @@ namespace SimpleMapper.Facts
         public void Mappings([Frozen] Mock<IMapperConfiguration> configurationMock){
             var map = new Mapper.SetupMapping(configurationMock.Object);
 
-            map.UsingConvention(
+            map.WithConvention(
                 (s, d) =>
                     from destination in d
                     join source in s on destination.Name.ToLower() equals source.Name.ToLower()
@@ -41,12 +41,12 @@ namespace SimpleMapper.Facts
                 });
 
             map.From<ClassA>().To<ClassAModel>()
-                .AddCustomConvention((s, d) =>
+                .WithCustomConvention((s, d) =>
                     from destination in d
                     join source in s on destination.Name.ToLower() equals source.Name.ToLower()
                     where source.CanRead && destination.CanWrite
                     select new {source, destination})
-                .AddCustomConversion<int, string>(i => i.ToString(CultureInfo.CurrentCulture))
+                .WithCustomConversion<int, string>(i => i.ToString(CultureInfo.CurrentCulture))
                 .Set(x => x.P1)
                 .SetManually((s, d) => {
                     d.P1 = s.P1;

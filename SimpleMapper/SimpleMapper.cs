@@ -396,7 +396,7 @@ namespace SimpleMapper{
                 return new MapTo<TSource>(_configuration);
             }
 
-            public void UsingConvention(Func<PropertyInfo[], PropertyInfo[], IEnumerable<dynamic>> convention){
+            public void WithConvention(Func<PropertyInfo[], PropertyInfo[], IEnumerable<dynamic>> convention){
                 _configuration.AddConvention(convention);
             }
 
@@ -448,13 +448,13 @@ namespace SimpleMapper{
                     return this;
                 }
 
-                public SetupMap<TSource, TDestination> AddCustomConvention(
+                public SetupMap<TSource, TDestination> WithCustomConvention(
                     Func<PropertyInfo[], PropertyInfo[], IEnumerable<dynamic>> convention){
                     _map.Conventions.Add(convention);
                     return this;
                 }
 
-                public SetupMap<TSource, TDestination> AddCustomConversion<TFrom, TTo>(Func<TFrom, TTo> conversion){
+                public SetupMap<TSource, TDestination> WithCustomConversion<TFrom, TTo>(Func<TFrom, TTo> conversion){
                     _map.Conversions.Add(new KeyValuePair<Type, Type>(typeof (TFrom), typeof (TTo)), new TypeConversionContainer<TFrom, TTo>(conversion));
                     return this;
                 }
