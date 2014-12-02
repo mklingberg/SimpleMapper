@@ -58,7 +58,7 @@ namespace SimpleMapper{
 
         void AddMap(Type source, Type destination, IPropertyMap container);
         void AddConvention(Func<PropertyInfo[], PropertyInfo[], IEnumerable<object>> convention);
-        void AddConvertion<TSource, TDestination>(Func<TSource, TDestination> conversion);
+        void AddConversion<TSource, TDestination>(Func<TSource, TDestination> conversion);
         IMapperConfiguration Initialize();
     }
 
@@ -76,10 +76,10 @@ namespace SimpleMapper{
             ConfigLoader = new MapperConfigLoader();
             Conventions = new List<Func<PropertyInfo[], PropertyInfo[], IEnumerable<dynamic>>>{ ObjectMapper.SameNameConventionIgnoreCase };
             Conversions = new Dictionary<KeyValuePair<Type, Type>, ITypeConverter>();
-            AddConvertion(ObjectMapper.DateToStringConversion);
-            AddConvertion(ObjectMapper.StringToDateConversion);
-            AddConvertion(ObjectMapper.IntToStringConversion);
-            AddConvertion(ObjectMapper.StringToIntConversion);
+            AddConversion(ObjectMapper.DateToStringConversion);
+            AddConversion(ObjectMapper.StringToDateConversion);
+            AddConversion(ObjectMapper.IntToStringConversion);
+            AddConversion(ObjectMapper.StringToIntConversion);
             CreateMissingMapsAutomaticly = true;
             DefaultActivator = Activator.CreateInstance;
         }
@@ -105,7 +105,7 @@ namespace SimpleMapper{
             Conventions.Add(convention);
         }
 
-        public void AddConvertion<TSource, TDestination>(Func<TSource, TDestination> conversion){
+        public void AddConversion<TSource, TDestination>(Func<TSource, TDestination> conversion){
             Conversions[new KeyValuePair<Type, Type>(typeof (TSource), typeof (TDestination))] = new TypeConversionContainer<TSource, TDestination>(conversion);
         }
     }
@@ -377,7 +377,7 @@ namespace SimpleMapper{
         public SetupMapping Map { get; set; }
 
         protected void ConvertUsing<TFrom, TTo>(Func<TFrom, TTo> conversion){
-            _configuration.AddConvertion(conversion);
+            _configuration.AddConversion(conversion);
         }
 
         public class SetupMapping{
