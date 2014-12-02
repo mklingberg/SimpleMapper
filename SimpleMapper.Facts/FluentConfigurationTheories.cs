@@ -9,11 +9,9 @@ using Xunit;
 using Xunit.Extensions;
 
 namespace SimpleMapper.Facts{
-    public class FluentConfigurationFacts{
+    public class FluentConfigurationTheories {
         [Theory, AutoTestData]
-        public void ShouldBePossibleToAddConventions([Frozen] Mock<IMapperConfiguration> configurationMock,
-            Mapper.SetupMapping map){
-            
+        public void ShouldBePossibleToAddConventions([Frozen] Mock<IMapperConfiguration> configurationMock, Mapper.SetupMapping map){
             map.WithConvention(
                 (s, d) =>
                     from destination in d
