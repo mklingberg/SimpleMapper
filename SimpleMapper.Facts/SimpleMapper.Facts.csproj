@@ -60,8 +60,9 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AutoTestDataAttribute.cs" />
     <Compile Include="ConventionMapperFacts.cs" />
-    <Compile Include="FluentMapperFacts.cs" />
+    <Compile Include="FluentConfigurationFacts.cs" />
     <Compile Include="InitializationFacts.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
