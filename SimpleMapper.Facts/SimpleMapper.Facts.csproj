@@ -62,6 +62,7 @@
   <ItemGroup>
     <Compile Include="AutoTestDataAttribute.cs" />
     <Compile Include="ConventionMapperFacts.cs" />
+    <Compile Include="ExtensionMethodFacts.cs" />
     <Compile Include="FluentConfigurationTheories.cs" />
     <Compile Include="InitializationFacts.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

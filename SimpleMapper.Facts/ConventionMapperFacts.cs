@@ -1,5 +1,5 @@
 using System;
-using System.Data.SqlTypes;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
@@ -12,101 +12,148 @@ namespace SimpleMapper.Facts
 {
     public class ConventionMapperFacts
     {
-        public class SpeedTests
+        public class PerformanceTests
         {
-            private const int ENTITY_COUNT = 5000;
+            [Theory, AutoTestData]
+            public void ShouldBePossibleToGetPropertyValue(ClassA classA){
+                var getter = LambdaCompiler.CreateGetter<ClassA, string>("P1");
+                Assert.True(classA.P1 == getter(classA));
+            }
 
-            //[Theory, AutoData]
-            //public void TestTimeMappingEntititesUsingConventionMapperAndCompareToManualMapping(IFixture fixture)
-            //{
-            //    var entities = fixture.Build<EntityA>().CreateMany(ENTITY_COUNT).ToList();
+            [Theory, AutoTestData]
+            public void ShouldBePossibleToSetPropertyValue(ClassA classA){
+                var setter = LambdaCompiler.CreateSetter<ClassA, string>("P1");
+                setter(classA, "hej");
+                Assert.True(classA.P1 == "hej");
+            }
 
-            //    ObjectMapper.CreateMap<EntityA, EntityB>();
+            [Theory, AutoTestData]
+            public void ComparePropertySetterPerformance(ClassA classA){
+                var setValue = LambdaCompiler.CreateSetter<ClassA, string> ("P1");
+                
+                const int items = 1000000;
 
-            //    var timerAuto = new Stopwatch();
-            //    var timerManual = new Stopwatch();
+                var timerCompiled = new Stopwatch();
+                var timerReflection = new Stopwatch();
+                
+                timerCompiled.Start();
+                
+                for (var i = 0; i < items; i++){
+                    setValue(classA, "hej");
+                }
 
-            //    timerAuto.Start();
+                timerCompiled.Stop();
 
-            //    var autoMappedItems = entities.MapTo<EntityB>().ToList();
+                var info = classA.GetType().GetProperties().First(x => x.Name == "P1");
 
-            //    timerAuto.Stop();
+                timerReflection.Start();
 
-            //    timerManual.Start();
+                for (var i = 0; i < items; i++){
+                    info.SetValue(classA, "hej");
+                }
 
-            //    var manuallyMapped = entities.Select(e => new EntityB {
-            //                                               P0 = e.P0, P1 = e.P1, P2 = e.P2, P3 = e.P3, P4 = e.P4, P5 = e.P5, P6 = e.P6, P7 = e.P7, P8 = e.P8, P9 = e.P9
-            //                                           }).ToList();
-            //    timerManual.Stop();
+                timerReflection.Stop();
 
-            //    Console.WriteLine("TimeMapper: {0} TimeManual: {1}", timerAuto.ElapsedMilliseconds, timerManual.ElapsedMilliseconds);
-            //}
+                Console.WriteLine("Compiled: {0} Reflection: {1}", timerCompiled.ElapsedMilliseconds, timerReflection.ElapsedMilliseconds);
+            }
 
-            //[Theory, AutoData]
-            //public void TestTimeMappingEntititesUsingManualMapperAndCompareToManualMapping(IFixture fixture)
-            //{
-            //    var entities = fixture.Build<EntityA>().CreateMany(ENTITY_COUNT).ToList();
+            [Theory, AutoTestData]
+            public void ComparePropertyGetterPerformance(ClassA classA){
+                var getValue = LambdaCompiler.CreateGetter<ClassA, string> ("P1");
+                
+                const int items = 1000000;
 
-            //    ObjectMapper.AddMap<EntityA, EntityB>((s, d) => {
-            //                                                           d.P0 = s.P0;
-            //                                                           d.P2 = s.P2;
-            //                                                           d.P3 = s.P3;
-            //                                                           d.P4 = s.P4;
-            //                                                           d.P5 = s.P5;
-            //                                                           d.P6 = s.P6;
-            //                                                           d.P7 = s.P7;
-            //                                                           d.P8 = s.P8;
-            //                                                           d.P9 = s.P9;
-            //                                                       }, false);
+                var timerCompiled = new Stopwatch();
+                var timerReflection = new Stopwatch();
+                
+                timerCompiled.Start();
+                
+                for (var i = 0; i < items; i++){
+                    getValue(classA);
+                }
 
-            //    var timerAuto = new Stopwatch();
-            //    var timerManual = new Stopwatch();
+                timerCompiled.Stop();
 
-            //    timerAuto.Start();
+                var info = classA.GetType().GetProperties().First(x => x.Name == "P1");
 
+                timerReflection.Start();
 
-            //    var autoMappedItems = entities.MapTo<EntityB>().ToList();
+                for (var i = 0; i < items; i++){
+                    info.GetValue(classA);
+                }
 
-            //    timerAuto.Stop();
+                timerReflection.Stop();
 
-            //    timerManual.Start();
+                Console.WriteLine("Compiled: {0} Reflection: {1}", timerCompiled.ElapsedMilliseconds, timerReflection.ElapsedMilliseconds);
+            }
 
-            //    var manuallyMapped = entities.Select(e => new EntityB {
-            //                                               P0 = e.P0, P1 = e.P1, P2 = e.P2, P3 = e.P3, P4 = e.P4, P5 = e.P5, P6 = e.P6, P7 = e.P7, P8 = e.P8, P9 = e.P9
-            //                                           }).ToList();
-            //    timerManual.Stop();
+            [Fact]
+            public void TestActivation(){
 
-            //    Console.WriteLine("TimeMapper: {0} TimeManual: {1}", timerAuto.ElapsedMilliseconds, timerManual.ElapsedMilliseconds);
-            //}
+                const int items = 1000000;
+
+                var timerCompiled = new Stopwatch();
+                var timerActivator = new Stopwatch();
+
+                var entities = new List<ClassA>();
+
+                var classACreator = LambdaCompiler.CreateActivator<ClassA>();
+
+                timerCompiled.Start();
+
+                for (var i = 0; i < items; i++){
+                    entities.Add(classACreator());    
+                }
+
+                timerCompiled.Stop();
+
+                timerActivator.Start();
+
+                for (var i = 0; i < items; i++){
+                    entities.Add(Activator.CreateInstance<ClassA>());    
+                }
+
+                timerActivator.Stop();
+
+                Console.WriteLine("Compiled: {0} Activator: {1}", timerCompiled.ElapsedMilliseconds, timerActivator.ElapsedMilliseconds);
+                
+            }
+
+            [Theory, AutoData]
+            public void TestTimeMappingEntititesUsingConventionMapperAndCompareToManualMapping(IFixture fixture){
+                const int ItemCount = 1000000;
+
+                var entities = new List<EntityA>(ItemCount);
+
+                for (var i = 0; i < ItemCount; i++){
+                    entities.Add(new EntityA { P0 = "1", P1 = "2", P2 = "2", P3 = "3", P4 = "4", P5 = "5", P6 = "6", P7 = "7", P8 = "8", P9 = "9"});
+                }
+
+                var mapper = new ObjectMapper();
+
+                mapper.CreateMap<EntityA, EntityB>();
+                mapper.Configuration.Initialize();
+
+                var timerAuto = new Stopwatch();
+                var timerManual = new Stopwatch();
+
+                timerAuto.Start();
+
+                var autoMappedItems = entities.MapTo<EntityB>().ToList();
+
+                timerAuto.Stop();
+
+                timerManual.Start();
+
+                var manuallyMapped = entities.Select(e => new EntityB {
+                                                           P0 = e.P0, P1 = e.P1, P2 = e.P2, P3 = e.P3, P4 = e.P4, P5 = e.P5, P6 = e.P6, P7 = e.P7, P8 = e.P8, P9 = e.P9
+                                                       }).ToList();
+                timerManual.Stop();
+
+                Console.WriteLine("TimeMapper: {0} TimeManual: {1}", timerAuto.ElapsedMilliseconds, timerManual.ElapsedMilliseconds);
+            }
         }
-
-        //public class TypeResolveFacts
-        //{
-        //    [Theory, AutoData]
-        //    public void ShouldBePossibleToMapPolymorphicModelsAsTypeB(TypeLookupModel model)
-        //    {
-        //        model.Type = "b";
-
-
-
-        //        ObjectMapper.ResolveUsing<TypeLookupModel>(x => x.Type == "a" ? typeof (ClassA) : typeof (ClassB));
-
-                
-
-        //        Assert.IsType<ClassB>(model.MapTo<ClassA>());
-        //    }
-
-        //    [Theory, AutoData]
-        //    public void ShouldBePossibleToMapPolymorphicModelsAsTypeA(TypeLookupModel model)
-        //    {
-        //        model.Type = "a";
-                
-        //        ObjectMapper.ResolveUsing<TypeLookupModel>(x => x.Type == "a" ? typeof (ClassA) : typeof (ClassB));
-
-        //        Assert.IsType<ClassA>(model.MapTo<ClassA>());
-        //    }
-        //}
-
+       
         public class ConventionFacts
         {
             [Theory, AutoData]

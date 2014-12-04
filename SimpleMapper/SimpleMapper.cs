@@ -11,12 +11,11 @@ namespace SimpleMapper{
     public static class MapperExtensions{
         internal static ObjectMapper Mapper = new ObjectMapper();
 
-        public static IEnumerable<TDestination> MapTo<TSource, TDestination>(this IEnumerable<TSource> source)
-            where TDestination : class where TSource : class{
-            return Mapper.MapMany<TSource, TDestination>(source);
-        }
-
         public static IEnumerable<TDestination> MapTo<TDestination>(this IEnumerable source) where TDestination : class{
+            var sourceType = source.GetType();
+            if (sourceType.IsGenericType && sourceType.GetGenericArguments().Length == 1){
+                return Mapper.MapMany<TDestination>(source, sourceType.GetGenericArguments()[0]);
+            }
             return (from object item in source select item.MapTo<TDestination>());
         }
 
@@ -47,7 +46,7 @@ namespace SimpleMapper{
     }
 
     public interface IMapperConfiguration{
-        Func<Type, object> DefaultActivator { get; }
+        Func<Type, object> CustomActivator { get; }
         bool CreateMissingMapsAutomaticly { get; }
         IDictionary<KeyValuePair<Type, Type>, ITypeConverter> Conversions { get; }
         IList<Func<PropertyInfo[], PropertyInfo[], IEnumerable<dynamic>>> Conventions { get; }
@@ -63,7 +62,7 @@ namespace SimpleMapper{
     }
 
     public class MapperConfiguration : IMapperConfiguration{
-        public Func<Type, object> DefaultActivator { get; set; }
+        public Func<Type, object> CustomActivator { get; set; }
         public bool CreateMissingMapsAutomaticly { get; set; }
         public IDictionary<KeyValuePair<Type, Type>, ITypeConverter> Conversions { get; private set; }
         public IList<Func<PropertyInfo[], PropertyInfo[], IEnumerable<dynamic>>> Conventions { get; private set; }
@@ -81,7 +80,7 @@ namespace SimpleMapper{
             AddConversion(ObjectMapper.IntToStringConversion);
             AddConversion(ObjectMapper.StringToIntConversion);
             CreateMissingMapsAutomaticly = true;
-            DefaultActivator = Activator.CreateInstance;
+            CustomActivator = null;
         }
 
         public IMapperConfiguration Initialize(){
@@ -144,19 +143,18 @@ namespace SimpleMapper{
             Configuration = configuration;
         }
 
-        public IEnumerable<TDestination> MapMany<TSource, TDestination>(IEnumerable<TSource> source,
-            Type lookupType = null) where TDestination : class where TSource : class{
-            var items = new List<TDestination>();
-            if (source == null) return items;
+        public IEnumerable<TDestination> MapMany<TDestination>(IEnumerable source, Type listItemType, Type lookupType = null) where TDestination : class{
+            if (source == null) return new TDestination[0];
+            var enumerable = source as object[] ?? source.Cast<object>().ToArray();
+            var items = new TDestination[enumerable.Length];
+            var map = GetMap(listItemType, lookupType ?? typeof (TDestination));
 
-            var map = GetMap(typeof (TSource), lookupType ?? typeof (TDestination));
-
-            foreach (var item in source){
+            for (var i = 0; i < enumerable.Length; i++){
+                var item = enumerable[i];
                 var destination = CreateDestinationObject<TDestination>(item, map);
                 map.Map(item, destination);
-                items.Add(destination);
+                items[i] = destination;
             }
-
             return items;
         }
 
@@ -165,14 +163,14 @@ namespace SimpleMapper{
 
             var destination = map.CreateDestinationObject(source);
 
-            return (T) destination ?? (T) Configuration.DefaultActivator(typeof (T));
+            return (T) destination ?? (T) Configuration.CustomActivator(typeof (T));
         }
 
-        internal void CreateMap(Type source, Type destination){
+        internal void CreateMapAndInitialize(Type source, Type destination){
             var type = typeof (ConventionMap<,>).MakeGenericType(source, destination);
-            var map = Configuration.DefaultActivator(type);
-
-            Configuration.Maps.Add(new KeyValuePair<Type, Type>(source, destination), (IPropertyMap) type.GetMethod("CreateMap").Invoke(map, null));
+            var map = (IPropertyMap) (Configuration.CustomActivator != null ? Configuration.CustomActivator(type) : Activator.CreateInstance(type));
+            map.Initialize();
+            Configuration.Maps.Add(new KeyValuePair<Type, Type>(source, destination), map);
         }
 
         internal void CreateMap<TSource, TDestination>(){
@@ -192,7 +190,7 @@ namespace SimpleMapper{
 
             if (Configuration.Maps.ContainsKey(key)) return Configuration.Maps[key];
 
-            if (Configuration.CreateMissingMapsAutomaticly) CreateMap(sourceType, destinationType);
+            if (Configuration.CreateMissingMapsAutomaticly) CreateMapAndInitialize(sourceType, destinationType);
             else throw new MapperException(string.Format("No map configured to map from {0} to {1}", sourceType.Name, destinationType.Name));
 
             return Configuration.Maps[key];
@@ -218,6 +216,7 @@ namespace SimpleMapper{
         private IEnumerable<PropertyLookup> _map;
         private readonly IMapperConfiguration _configuration;
 
+        public ConventionMap() : this(ObjectMapper.CurrentConfiguration){}
         public ConventionMap(IMapperConfiguration configuration){
             _configuration = configuration;
             IgnoreProperties = new List<string>();
@@ -227,50 +226,58 @@ namespace SimpleMapper{
 
         public List<string> IgnoreProperties { get; set; }
         public Func<TSource, TDestination> CustomActivator { get; set; }
+        internal Func<TDestination> SpecializedActivator { get; set; }
         public List<Func<PropertyInfo[], PropertyInfo[], IEnumerable<dynamic>>> Conventions { get; set; }
         public Dictionary<KeyValuePair<Type, Type>, ITypeConverter> Conversions { get; set; }
-
+        
         public virtual void Initialize(){
             var conventionMap = new List<dynamic>();
             var sourceProperties = typeof (TSource).GetProperties();
             var destinationProperties = typeof (TDestination).GetProperties();
             var propertyMap = new List<PropertyLookup>();
 
-            if (!Conventions.Any()) throw new ApplicationException("No conventions configured!");
+            if (CustomActivator == null && _configuration.CustomActivator == null){ 
+                SpecializedActivator = LambdaCompiler.CreateActivator<TDestination>(); 
+            }
 
-            Conventions.ForEach(convention => conventionMap.AddRange(convention(sourceProperties, destinationProperties)));
+            Conventions.Concat(_configuration.Conventions).ToList().ForEach(convention => conventionMap.AddRange(convention(sourceProperties, destinationProperties)));
 
             conventionMap.ForEach(map =>{
-                                      if (!map.source.CanRead) throw new MapperException(string.Format("Property to read from {0} has no getter!", map.source.Name));
-                                      if (!map.destination.CanWrite) throw new MapperException(string.Format("Property to write to {0} has no setter", map.destination.Name));
+                if (!map.source.CanRead) throw new MapperException(string.Format("Property to read from {0} has no getter!", map.source.Name));
+                if (!map.destination.CanWrite) throw new MapperException(string.Format("Property to write to {0} has no setter", map.destination.Name));
+                if (IgnoreProperties.Contains(map.destination.Name)) return;
 
-                                      var item = new PropertyLookup{Source = map.source, Destination = map.destination};
+                var getter = typeof(PropertyLookup.GetterInvoker<,>).MakeGenericType(typeof(TSource), map.source.PropertyType);
+                var setter = typeof(PropertyLookup.SetterInvoker<,>).MakeGenericType(typeof(TDestination), map.destination.PropertyType);
+                var item = new PropertyLookup{Source = Activator.CreateInstance(getter, new object[]{map.source.Name}), Destination = Activator.CreateInstance(setter, new object[] {map.destination.Name})};
 
-                                      if (map.source.PropertyType.Name != map.destination.PropertyType.Name){
-                                          var conversionKey = new KeyValuePair<Type, Type>(map.source.PropertyType, map.destination.PropertyType);
-                                          if (!Conversions.ContainsKey(conversionKey)) throw new MapperException("Matched properties are not of same type, and no conversion available!");
-                                          item.Conversion = _configuration.Conversions[conversionKey];
-                                      }
+                if (map.source.PropertyType.Name != map.destination.PropertyType.Name){
+                    item.Converter = GetConversion(new KeyValuePair<Type, Type>(map.source.PropertyType, map.destination.PropertyType));
+                }
 
-                                      propertyMap.Add(item);
-                                  });
+                propertyMap.Add(item);
+            });
 
-            propertyMap = propertyMap.Distinct().ToList();
-            propertyMap.RemoveAll(x => IgnoreProperties.Contains(x.Destination.PropertyType.Name));
+            _map = propertyMap.Distinct().ToList(); //TODO: verify distinct behavior in this case...
+        }
 
-            _map = propertyMap;
+        private ITypeConverter GetConversion(KeyValuePair<Type, Type> key){
+            if (Conversions.ContainsKey(key)) return Conversions[key];
+            if (_configuration.Conversions.ContainsKey(key)) return _configuration.Conversions[key];
+
+            throw new MapperException("Matched properties are not of same type, and no conversion available!");
         }
 
         public virtual void Map(object source, object destination){
             foreach (var lookup in _map){
                 try{
-                    var fromValue = lookup.Source.GetValue(source, null);
+                    var fromValue = lookup.Source.Get(source);
 
-                    if (lookup.Conversion != null){
-                        fromValue = lookup.Conversion.Convert(fromValue);
+                    if (lookup.Converter != null){
+                        fromValue = lookup.Converter.Convert(fromValue);
                     }
 
-                    lookup.Destination.SetValue(destination, fromValue, null);
+                    lookup.Destination.Set(destination, fromValue);
                 }
                 catch (Exception ex){
                     throw new MapperException("There was an error setting mapped property value", ex);
@@ -279,7 +286,8 @@ namespace SimpleMapper{
         }
 
         public object CreateDestinationObject(object source){
-            return CustomActivator == null ? (object) null : CustomActivator((TSource) source);
+            if (CustomActivator != null) return CustomActivator((TSource) source);
+            return SpecializedActivator != null ? SpecializedActivator() : _configuration.CustomActivator(typeof (TDestination));
         }
     }
 
@@ -504,26 +512,57 @@ namespace SimpleMapper{
         }
     }
 
-    internal class PropertyLookup{
-        public PropertyInfo Source { get; set; }
-        public PropertyInfo Destination { get; set; }
-        public ITypeConverter Conversion { get; set; }
+    internal class PropertyLookup {
+        public IGetter Source { get; set; }
+        public ISetter Destination { get; set; }
+        public ITypeConverter Converter { get; set; }
 
-        private bool Equals(PropertyLookup other){
-            return Equals(Source, other.Source) && Equals(Destination, other.Destination);
+        internal interface ISetter{ void Set(object item, object value); }
+        internal interface IGetter{ object Get(object item); }
+
+        internal class SetterInvoker<TObject, TProperty> : ISetter {
+            private Action<TObject, TProperty> Setter { get; set; }
+
+            public SetterInvoker(string propertyName){
+                Setter = LambdaCompiler.CreateSetter<TObject, TProperty>(propertyName);
+            }
+
+            public void Set(object item, object value){
+                Setter((TObject) item, (TProperty) value);
+            }
         }
 
-        public override bool Equals(object obj){
-            if (ReferenceEquals(null, obj)) return false;
-            if (ReferenceEquals(this, obj)) return true;
-            return obj.GetType() == GetType() && Equals((PropertyLookup) obj);
-        }
+        internal class GetterInvoker<TObject, TProperty> : IGetter{
+            private Func<TObject, TProperty> Getter { get; set; }
 
-        public override int GetHashCode(){
-            unchecked{
-                return ((Source != null ? Source.GetHashCode() : 0)*397) ^
-                       (Destination != null ? Destination.GetHashCode() : 0);
+            public GetterInvoker(string propertyName){
+                Getter = LambdaCompiler.CreateGetter<TObject, TProperty>(propertyName);
+            }
+
+            public object Get(object item){
+                return Getter((TObject) item);
             }
         }
     }
+
+    internal static class LambdaCompiler {
+            public static Func<TObject, TProperty> CreateGetter<TObject, TProperty>(string propertyName) {
+                var parameter = Expression.Parameter(typeof(TObject), "value");
+                var property = Expression.Property(parameter, propertyName);
+                return Expression.Lambda<Func<TObject, TProperty>>(property, parameter).Compile();
+            }
+
+            public static Action<TObject, TProperty> CreateSetter<TObject, TProperty>(string propertyName) {            
+                var objectParameter = Expression.Parameter(typeof(TObject));
+                var propertyParameter = Expression.Parameter(typeof(TProperty), propertyName);
+                var getter = Expression.Property(objectParameter, propertyName);
+                return Expression.Lambda<Action<TObject, TProperty>> ( Expression.Assign(getter, propertyParameter), objectParameter, propertyParameter).Compile();
+            }
+
+            internal static Func<T> CreateActivator<T>(){
+                var constructor = typeof (T).GetConstructors().FirstOrDefault(x => x.GetParameters().Length == 0);
+                if(constructor == null) throw new MapperException(string.Format("Cant create destination object {0}, no parameterless constructor available!", typeof(T).Name));
+                return (Func<T>) Expression.Lambda(typeof(Func<T>), Expression.New(constructor)).Compile();
+            }
+        }
 }

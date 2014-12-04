@@ -25,10 +25,10 @@ namespace SimpleMapper.Facts
             ObjectMapper.Configure(new MapperConfiguration
                                    {
                                        CreateMissingMapsAutomaticly = true,
-                                       DefaultActivator = null
+                                       CustomActivator = null
                                    });
 
-            Assert.Equal(ObjectMapper.CurrentConfiguration.DefaultActivator, null);
+            Assert.Equal(ObjectMapper.CurrentConfiguration.CustomActivator, null);
             Assert.Equal(ObjectMapper.CurrentConfiguration.CreateMissingMapsAutomaticly, true);
         }
 
