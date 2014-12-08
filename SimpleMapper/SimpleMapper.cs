@@ -19,6 +19,10 @@ namespace SimpleMapper{
             return (from object item in source select item.MapTo<TDestination>());
         }
 
+        internal static object MapToList<TDestination>(this IEnumerable source) where TDestination : class {
+            return Mapper.MapManyAsList<TDestination>(source);
+        }
+
         public static IEnumerable<TDestination> MapToAs<TDestination, TMapAs>(this IEnumerable source)
             where TDestination : class where TMapAs : class{
             return (from object item in source select item.MapToAs<TDestination, TMapAs>());
@@ -51,6 +55,7 @@ namespace SimpleMapper{
         IDictionary<KeyValuePair<Type, Type>, ITypeConverter> Conversions { get; }
         IList<Func<PropertyInfo[], PropertyInfo[], IEnumerable<dynamic>>> Conventions { get; }
         IDictionary<KeyValuePair<Type, Type>, IPropertyMap> Maps { get; }
+        bool ApplyConventionsRecursively { get; set; }
 
         void AddMap<TSource, TDestination>(Action<TSource, TDestination> map, bool useConventionMapping)
             where TSource : class where TDestination : class;
@@ -64,6 +69,7 @@ namespace SimpleMapper{
     public class MapperConfiguration : IMapperConfiguration{
         public Func<Type, object> CustomActivator { get; set; }
         public bool CreateMissingMapsAutomaticly { get; set; }
+        public bool ApplyConventionsRecursively { get; set; }
         public IDictionary<KeyValuePair<Type, Type>, ITypeConverter> Conversions { get; private set; }
         public IList<Func<PropertyInfo[], PropertyInfo[], IEnumerable<dynamic>>> Conventions { get; private set; }
         public IDictionary<KeyValuePair<Type, Type>, IPropertyMap> Maps { get; private set; }
@@ -79,7 +85,10 @@ namespace SimpleMapper{
             AddConversion(ObjectMapper.StringToDateConversion);
             AddConversion(ObjectMapper.IntToStringConversion);
             AddConversion(ObjectMapper.StringToIntConversion);
+            AddConversion(ObjectMapper.BoolToStringConversion);
+            AddConversion(ObjectMapper.StringToBoolConversion);
             CreateMissingMapsAutomaticly = true;
+            ApplyConventionsRecursively = true;
             CustomActivator = null;
         }
 
@@ -105,7 +114,7 @@ namespace SimpleMapper{
         }
 
         public void AddConversion<TSource, TDestination>(Func<TSource, TDestination> conversion){
-            Conversions[new KeyValuePair<Type, Type>(typeof (TSource), typeof (TDestination))] = new TypeConversionContainer<TSource, TDestination>(conversion);
+            Conversions[new KeyValuePair<Type, Type>(typeof (TSource), typeof (TDestination))] = new CustomTypeConversionContainer<TSource, TDestination>(conversion);
         }
     }
 
@@ -128,12 +137,12 @@ namespace SimpleMapper{
                 where source.CanRead && destination.CanWrite
                 select new{source, destination};
 
-        public static readonly Func<DateTime, string> DateToStringConversion =
-            time => time.ToString(CultureInfo.CurrentUICulture);
-
+        public static readonly Func<DateTime, string> DateToStringConversion = time => time.ToString(CultureInfo.CurrentUICulture);
         public static readonly Func<string, DateTime> StringToDateConversion = s => DateTime.Parse(s);
         public static readonly Func<int, string> IntToStringConversion = i => i.ToString(CultureInfo.CurrentCulture);
         public static readonly Func<string, int> StringToIntConversion = s => Int32.Parse(s);
+        public static readonly Func<bool, string> BoolToStringConversion = b => b.ToString();
+        public static readonly Func<string, bool> StringToBoolConversion = s => bool.Parse(s);
 
         internal ObjectMapper(){
             Configuration = CurrentConfiguration;
@@ -144,26 +153,51 @@ namespace SimpleMapper{
         }
 
         public IEnumerable<TDestination> MapMany<TDestination>(IEnumerable source, Type listItemType, Type lookupType = null) where TDestination : class{
-            if (source == null) return new TDestination[0];
-            var enumerable = source as object[] ?? source.Cast<object>().ToArray();
-            var items = new TDestination[enumerable.Length];
+            if (source == null) yield break;
             var map = GetMap(listItemType, lookupType ?? typeof (TDestination));
 
-            for (var i = 0; i < enumerable.Length; i++){
-                var item = enumerable[i];
+            foreach (var item in source){
                 var destination = CreateDestinationObject<TDestination>(item, map);
                 map.Map(item, destination);
-                items[i] = destination;
+                yield return destination;
             }
-            return items;
+        }
+
+        public object MapManyAsList<TDestination>(IEnumerable source) where TDestination : class {
+            var enumerable = source as object[] ?? source.Cast<object>().ToArray();
+            var targetListType = typeof (TDestination);
+            var sourceListType = source.GetType();
+
+            if (!targetListType.IsGenericType || targetListType.GetGenericArguments().Length != 1){
+                throw new MapperException(string.Format("Could not perform list mapping for {0}, destinationtype must be generic with item type specified", targetListType.Name));
+            }
+            
+            if (!sourceListType.IsGenericType || sourceListType.GetGenericArguments().Length != 1){
+                throw new MapperException(string.Format("Could not perform list mapping for {0}, sourcetype must be generic with item type specified", sourceListType.Name));
+            }
+            
+            var sourceItemType = sourceListType.GetGenericArguments()[0];
+            var destinationItemType = targetListType.GetGenericArguments()[0];
+
+            var map = GetMap(sourceItemType, destinationItemType);
+            var list = (IList) Activator.CreateInstance(typeof(TDestination).IsInterface ? typeof(List<>).MakeGenericType(destinationItemType) : typeof(TDestination), enumerable.Length);
+            foreach (var item in enumerable){
+                var newItem = CreateDestinationObject(destinationItemType, item, map);
+                map.Map(item, newItem);
+                list.Add(newItem);
+            }
+
+            return list;
+        }
+
+        internal object CreateDestinationObject(Type destinationType, object source, IPropertyMap map = null){
+            if (map == null) map = GetMap(source.GetType(), destinationType);
+            var destination = map.CreateDestinationObject(source);
+            return destination ?? Configuration.CustomActivator(destinationType);
         }
 
         internal T CreateDestinationObject<T>(object source, IPropertyMap map = null) where T : class{
-            if (map == null) map = GetMap(source.GetType(), typeof (T));
-
-            var destination = map.CreateDestinationObject(source);
-
-            return (T) destination ?? (T) Configuration.CustomActivator(typeof (T));
+            return (T) CreateDestinationObject(typeof (T), source, map);
         }
 
         internal void CreateMapAndInitialize(Type source, Type destination){
@@ -251,8 +285,23 @@ namespace SimpleMapper{
                 var setter = typeof(PropertyLookup.SetterInvoker<,>).MakeGenericType(typeof(TDestination), map.destination.PropertyType);
                 var item = new PropertyLookup{Source = Activator.CreateInstance(getter, new object[]{map.source.Name}), Destination = Activator.CreateInstance(setter, new object[] {map.destination.Name})};
 
-                if (map.source.PropertyType.Name != map.destination.PropertyType.Name){
-                    item.Converter = GetConversion(new KeyValuePair<Type, Type>(map.source.PropertyType, map.destination.PropertyType));
+                if (map.source.PropertyType != map.destination.PropertyType){
+                    item.Converter = GetConversion(new KeyValuePair<Type, Type>(map.source.PropertyType, map.destination.PropertyType));    
+
+                    if (item.Converter == null){
+                        if(map.source.PropertyType.IsPrimitive && map.destination.PropertyType.IsPrimitive)
+                        throw new MapperException(string.Format("Matched properties are not of same primitive type, {0}, {1}, and no conversion available!", map.source.PropertyType.Name, map.destination.PropertyType.Name));
+
+                        if (typeof (Enum).IsAssignableFrom(map.source.PropertyType) && typeof (Enum).IsAssignableFrom(map.destination.PropertyType)){
+                            item.Converter = (ITypeConverter) Activator.CreateInstance(typeof (EnumConversionContainer<>).MakeGenericType(map.destination.PropertyType));
+                        }
+                        else{
+                            if (!_configuration.ApplyConventionsRecursively) return;
+                            item.Converter = (ITypeConverter) Activator.CreateInstance(
+                                typeof (DifferentTypeConversionContainer<>).MakeGenericType(map.destination.PropertyType), 
+                                new object[] { typeof(TSource).Name, map.source.Name, map.destination.Name });
+                        }
+                    }
                 }
 
                 propertyMap.Add(item);
@@ -263,9 +312,7 @@ namespace SimpleMapper{
 
         private ITypeConverter GetConversion(KeyValuePair<Type, Type> key){
             if (Conversions.ContainsKey(key)) return Conversions[key];
-            if (_configuration.Conversions.ContainsKey(key)) return _configuration.Conversions[key];
-
-            throw new MapperException("Matched properties are not of same type, and no conversion available!");
+            return _configuration.Conversions.ContainsKey(key) ? _configuration.Conversions[key] : null;
         }
 
         public virtual void Map(object source, object destination){
@@ -323,10 +370,10 @@ namespace SimpleMapper{
         object Convert(object source);
     }
 
-    public class TypeConversionContainer<TSource, TDestination> : ITypeConverter{
+    public class CustomTypeConversionContainer<TSource, TDestination> : ITypeConverter{
         private readonly Func<TSource, TDestination> _conversion;
 
-        public TypeConversionContainer(Func<TSource, TDestination> conversion){
+        public CustomTypeConversionContainer(Func<TSource, TDestination> conversion){
             _conversion = conversion;
         }
 
@@ -335,8 +382,40 @@ namespace SimpleMapper{
                 return _conversion((TSource) source);
             }
             catch (Exception ex){
-                throw new MapperException(string.Format("There was an error converting source {0} to target type", source.GetType().Name), ex);
+                throw new MapperException(string.Format("There was an error converting source {0} to {1}.", source.GetType().Name, typeof(TDestination).Name), ex);
             }
+        }
+    }
+
+    public class EnumConversionContainer<T> : ITypeConverter where T : struct {
+        public object Convert(object source){
+            T destination;
+            if (!Enum.TryParse(source.ToString(), out destination)) throw new MapperException(string.Format("{0} is not valid member of enumeration {1}", source, typeof(T).Name));
+            return destination;
+        }
+    }
+
+    public class DifferentTypeConversionContainer<TDestination> : ITypeConverter where TDestination : class {
+        private const int MaxRecursions = 50;
+        private int _recursions;
+        private readonly string _parentClassName;
+        private readonly string _parentPropertyName;
+        private readonly string _targetPropertyName;
+        public DifferentTypeConversionContainer(string parentClassName, string parentPropertyName, string targetPropertyName){
+            _parentClassName = parentClassName;
+            _parentPropertyName = parentPropertyName;
+            _targetPropertyName = targetPropertyName;
+        }
+
+        public object Convert(object source){
+            if(_recursions >= MaxRecursions) throw new MapperException(string.Format("Could not map {0} to {1} on {2} because the traversed object graph contains a circular reference. Revise your object design, map it manually or add this property to the ignore list.", _parentPropertyName, _targetPropertyName, _parentClassName));
+            _recursions++;
+
+            var enumerable = source as IEnumerable;
+            var destination = enumerable != null ? enumerable.MapToList<TDestination>() : source.MapTo<TDestination>();
+
+            _recursions = 0;
+            return destination;
         }
     }
 
@@ -463,7 +542,7 @@ namespace SimpleMapper{
                 }
 
                 public SetupMap<TSource, TDestination> WithCustomConversion<TFrom, TTo>(Func<TFrom, TTo> conversion){
-                    _map.Conversions.Add(new KeyValuePair<Type, Type>(typeof (TFrom), typeof (TTo)), new TypeConversionContainer<TFrom, TTo>(conversion));
+                    _map.Conversions.Add(new KeyValuePair<Type, Type>(typeof (TFrom), typeof (TTo)), new CustomTypeConversionContainer<TFrom, TTo>(conversion));
                     return this;
                 }
 
@@ -546,23 +625,23 @@ namespace SimpleMapper{
     }
 
     internal static class LambdaCompiler {
-            public static Func<TObject, TProperty> CreateGetter<TObject, TProperty>(string propertyName) {
-                var parameter = Expression.Parameter(typeof(TObject), "value");
-                var property = Expression.Property(parameter, propertyName);
-                return Expression.Lambda<Func<TObject, TProperty>>(property, parameter).Compile();
-            }
-
-            public static Action<TObject, TProperty> CreateSetter<TObject, TProperty>(string propertyName) {            
-                var objectParameter = Expression.Parameter(typeof(TObject));
-                var propertyParameter = Expression.Parameter(typeof(TProperty), propertyName);
-                var getter = Expression.Property(objectParameter, propertyName);
-                return Expression.Lambda<Action<TObject, TProperty>> ( Expression.Assign(getter, propertyParameter), objectParameter, propertyParameter).Compile();
-            }
-
-            internal static Func<T> CreateActivator<T>(){
-                var constructor = typeof (T).GetConstructors().FirstOrDefault(x => x.GetParameters().Length == 0);
-                if(constructor == null) throw new MapperException(string.Format("Cant create destination object {0}, no parameterless constructor available!", typeof(T).Name));
-                return (Func<T>) Expression.Lambda(typeof(Func<T>), Expression.New(constructor)).Compile();
-            }
+        public static Func<TObject, TProperty> CreateGetter<TObject, TProperty>(string propertyName) {
+            var parameter = Expression.Parameter(typeof(TObject), "value");
+            var property = Expression.Property(parameter, propertyName);
+            return Expression.Lambda<Func<TObject, TProperty>>(property, parameter).Compile();
         }
+
+        public static Action<TObject, TProperty> CreateSetter<TObject, TProperty>(string propertyName) {            
+            var objectParameter = Expression.Parameter(typeof(TObject));
+            var propertyParameter = Expression.Parameter(typeof(TProperty), propertyName);
+            var property = Expression.Property(objectParameter, propertyName);
+            return Expression.Lambda<Action<TObject, TProperty>> ( Expression.Assign(property, propertyParameter), objectParameter, propertyParameter).Compile();
+        }
+
+        internal static Func<T> CreateActivator<T>(ConstructorInfo constructor = null){
+            constructor = constructor ?? typeof (T).GetConstructors().FirstOrDefault(x => x.GetParameters().Length == 0);
+            if(constructor == null) throw new MapperException(string.Format("Cant create destination object {0}, no parameterless constructor available!", typeof(T).Name));
+            return (Func<T>) Expression.Lambda(typeof(Func<T>), Expression.New(constructor)).Compile();
+        }
+    }
 }
