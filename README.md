@@ -44,7 +44,7 @@ ObjectMapper.Initialize(x =>
 	x.DefaultActivator = ObjectFactory.GetInstance;
 	x.CreateMissingMapsAutomaticly = true;
 	x.Scanner.ScanAssembliesContainingType<Customer>();
-	x.Scanner.IncludeAllAssembliesInBaseFolder = false;
+	x.Scanner.ScanAllAssembliesInBaseFolder = false;
 });
 
 ```
