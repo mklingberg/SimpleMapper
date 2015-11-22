@@ -51,11 +51,11 @@ ObjectMapper.Initialize(x =>
 
 ```
 
-The default activator is Activator.CreateInstance but you can use any IoContainer for dependency injection into your entity mappers.
+The default activator is Activator.CreateInstance but you can use any IOContainer for dependency injection into your entity mappers.
 
-## Conventions with Linq
+## Conventions with LINQ
 
-Custom conventions can easily be defined using Linq.
+Custom conventions can easily be defined with LINQ.
 
 ```csharp
 
