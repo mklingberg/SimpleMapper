@@ -35,7 +35,7 @@ public class CustomerMapper : Mapper
 
 ## Initialization
 
-SimpleMapper is initialized automatically if you just start mapping. If you want to customize the behavior or create maps directly on application startup you can do so with SimpleMapper.Initialize
+SimpleMapper is initialized automatically if you just start mapping. If you want to customize the behavior or create entity maps on application startup you can do so with ObjectMapper.Initialize.
 
 ```csharp
 
@@ -49,7 +49,7 @@ ObjectMapper.Initialize(x =>
 
 ```
 
-The default activator is Activator.CreateInstance but you can use any IOContainer for dependency injection into your entity mappers.
+By default SimpleMapper uses Activator.CreateInstance to create maps/classes. You can configure any IOContainer for dependency injection into your entity mappers using the DefaultActivator delegate shown above.
 
 ## Conventions with LINQ
 
