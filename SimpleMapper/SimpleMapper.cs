@@ -639,14 +639,14 @@ namespace SimpleMapper
     public interface IMapperScanner
     {
         IMapperScanner ScanAssembliesContainingType<T>();
-        bool IncludeAllAssembliesInBaseFolder { get; }
+        bool ScanAllAssembliesInBaseFolder { get; set; }
         IEnumerable<Type> ScanForMappers();
     }
 
     internal class MapperScanner : IMapperScanner
     {
         private List<Assembly> Assemblies { get; }  = new List<Assembly>();
-        public bool IncludeAllAssembliesInBaseFolder { get; set; } = true;
+        public bool ScanAllAssembliesInBaseFolder { get; set; } = true;
 
         public IMapperScanner ScanAssembliesContainingType<T>() {
             Assemblies.Add(typeof (T).Assembly);
@@ -655,7 +655,7 @@ namespace SimpleMapper
 
         public IEnumerable<Type> ScanForMappers()
         {
-            if (IncludeAllAssembliesInBaseFolder)
+            if (ScanAllAssembliesInBaseFolder)
             {
                 var baseUri = AppDomain.CurrentDomain.BaseDirectory.Replace("\\", "/");
                 Assemblies.AddRange(AppDomain.CurrentDomain.GetAssemblies().Where(x =>

@@ -1,6 +1,6 @@
 <img align="center" src="https://cloud.githubusercontent.com/assets/10036003/5346059/e56140a6-7f1c-11e4-88c9-59d570fa2ca7.png">
 
-SimpleMapper is a super lightweight, highly optimized mapping library for mapping between entities such as domain and view models or domain and service contracts.
+SimpleMapper is a super lightweight, highly optimized library for mapping between entities such as domain and view models or domain and service contracts.
 
 No one likes writing mapping code, its boring to write and takes time and resources to maintain. Mapping with SimpleMapper is a breeze. This example demostrates the simple .MapTo<> syntax.
 
