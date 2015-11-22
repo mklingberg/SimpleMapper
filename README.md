@@ -2,7 +2,7 @@
 
 # Meet SimpleMapper 
 
-SimpleMapper is a lightweight, highly optimized mapping library that can be used for mapping between entities such as domain and view models or domain and service contracts.
+SimpleMapper is a super lightweight, highly optimized mapping library for mapping between entities such as domain and view models or domain and service contracts.
 
 No one likes writing mapping code, its boring to write and takes time and resources to maintain. Mapping with SimpleMapper is a breeze. This example demostrates the simple .MapTo<> syntax.
 
@@ -11,6 +11,10 @@ No one likes writing mapping code, its boring to write and takes time and resour
 var model = Session.Query<Customer>().Where(x => x.Id == id).MapTo<CustomerModel>();
 
 ```
+
+## Installation
+
+Simply download SimpleMapper.cs and add it to your project. Available on NuGet soon...
 
 ## Setup mapping
 
