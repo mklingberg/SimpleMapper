@@ -1,7 +1,5 @@
 <img align="center" src="https://cloud.githubusercontent.com/assets/10036003/5346059/e56140a6-7f1c-11e4-88c9-59d570fa2ca7.png">
 
-# Meet SimpleMapper 
-
 SimpleMapper is a super lightweight, highly optimized mapping library for mapping between entities such as domain and view models or domain and service contracts.
 
 No one likes writing mapping code, its boring to write and takes time and resources to maintain. Mapping with SimpleMapper is a breeze. This example demostrates the simple .MapTo<> syntax.
@@ -18,7 +16,7 @@ Simply download SimpleMapper.cs and add it to your project. Available on NuGet s
 
 ## Setup mapping
 
-SimpleMapper supports convention based mapping, and aslong as you stick to a convention, you can map it automatically with SimpleMapper. When no convention applies its super easy to configure create a map manually using the fluent API and the base Mapper.
+SimpleMapper supports convention based mapping, and aslong as you stick to a convention, you can map it automatically with SimpleMapper. When no convention applies its super easy to create a map manually using the fluent API and the Mapper base class.
 
 ```csharp
 
@@ -37,7 +35,7 @@ public class CustomerMapper : Mapper
 
 ## Initialization
 
-SimpleMapper is initialized automatically if you just start mapping. If you want to customize the behavior or create maps directly on application startup you can do so by useing SimpleMapper.Initialize
+SimpleMapper is initialized automatically if you just start mapping. If you want to customize the behavior or create maps directly on application startup you can do so with SimpleMapper.Initialize
 
 ```csharp
 
