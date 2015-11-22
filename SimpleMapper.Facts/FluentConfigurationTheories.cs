@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
@@ -18,6 +19,13 @@ namespace SimpleMapper.Facts{
                     join source in s on destination.Name.ToLower() equals source.Name.ToLower()
                     where source.CanRead && destination.CanWrite
                     select new{source, destination});
+
+            configurationMock.Verify(x => x.AddConvention(It.IsAny<Func<PropertyInfo[], PropertyInfo[], IEnumerable<object>>>()), Times.Once);
+        }
+
+                [Theory, AutoTestData]
+        public void ShouldBePossibleToAddGenericConvention([Frozen] Mock<IMapperConfiguration> configurationMock, Mapper.SetupMapping map){
+            map.WithConvention<SameNameIgnoreCaseConvention>();
 
             configurationMock.Verify(x => x.AddConvention(It.IsAny<Func<PropertyInfo[], PropertyInfo[], IEnumerable<object>>>()), Times.Once);
         }
@@ -116,6 +124,19 @@ namespace SimpleMapper.Facts{
         }
 
         [Theory, AutoTestData]
+        public void ShouldByPossibleToAddCustomConventionUsingGenerics([Frozen] Mock<IMapperConfiguration> configurationMock, Mapper.SetupMapping map){
+            ManualMap<ClassAModel, ClassA> manualMap = null;
+
+            configurationMock.Setup(
+                x => x.AddMap(It.IsAny<Type>(), It.IsAny<Type>(), It.IsAny<IPropertyMap>()))
+                .Callback<Type, Type, IPropertyMap>((a,b,c) => manualMap = (ManualMap<ClassAModel, ClassA>) c);
+
+            map.From<ClassAModel>().To<ClassA>().WithCustomConvention<SameNameIgnoreCaseConvention>();
+
+            Assert.True(manualMap.Conventions.Count == 1);
+        }
+
+        [Theory, AutoTestData]
         public void ShouldBePossibleToAddCustomConversion([Frozen] Mock<IMapperConfiguration> configurationMock, Mapper.SetupMapping map){
             
             ManualMap<ClassAModel, ClassA> manualMap = null;
@@ -129,6 +150,22 @@ namespace SimpleMapper.Facts{
 
             Assert.True(manualMap.Conversions.Count == 1);
         }
+
+        //[Theory, AutoTestData]
+        //public void ShouldBePossibleToAddConventionFromMapper([Frozen] Mock<IMapperConfiguration> configurationMock,
+        //    Mapper.SetupConfiguration configure) {
+            
+        //    configure.WithConvention((s, d) =>
+        //            from destination in d
+        //            join source in s on destination.Name.ToLower() equals source.Name.ToLower()
+        //            where source.CanRead && destination.CanWrite
+        //            select new{source, destination});
+
+        //    //PropertyInfo[], PropertyInfo[], IEnumerable<dynamic>
+            
+        //    Assert.True(configurationMock.Verify(x => x.AddConvention(It.IsAny<PropertyInfo[]>(), It.IsAny<PropertyInfo[]>(), It.IsAny<IEnumerable<object>>()), Times.Once));
+
+        //}
     }
 
     public class ClassA{
