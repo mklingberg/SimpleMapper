@@ -6,7 +6,7 @@ No one likes writing mapping code, its boring to write and takes time and resour
 
 ```csharp
 
-var model = Session.Query<Customer>().Where(x => x.Id == id).MapTo<CustomerModel>();
+var model = Session.Get<Customer>(id).MapTo<CustomerModel>();
 
 ```
 
