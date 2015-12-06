@@ -6,65 +6,75 @@ using System.Linq;
 using System.Reflection;
 using Moq;
 using Ploeh.AutoFixture.Xunit;
+using SimpleMapper.Facts.AutoFixture;
+using SimpleMapper.Facts.TestObjects;
 using Xunit;
 using Xunit.Extensions;
 
-namespace SimpleMapper.Facts{
-    public class FluentConfigurationTheories {
+namespace SimpleMapper.Facts
+{
+    public class UsingFluentConfigurationApiItShouldBePossibleTo
+    {
         [Theory, AutoTestData]
-        public void ShouldBePossibleToAddConventions([Frozen] Mock<IMapperConfiguration> configurationMock, Mapper.SetupMapping map){
+        public void AddConventions([Frozen] Mock<IMapperConfiguration> configurationMock, Mapper.SetupMapping map)
+        {
             map.WithConvention(
                 (s, d) =>
                     from destination in d
                     join source in s on destination.Name.ToLower() equals source.Name.ToLower()
                     where source.CanRead && destination.CanWrite
-                    select new{source, destination});
+                    select new { source, destination });
 
             configurationMock.Verify(x => x.AddConvention(It.IsAny<Func<PropertyInfo[], PropertyInfo[], IEnumerable<object>>>()), Times.Once);
         }
 
-                [Theory, AutoTestData]
-        public void ShouldBePossibleToAddGenericConvention([Frozen] Mock<IMapperConfiguration> configurationMock, Mapper.SetupMapping map){
+        [Theory, AutoTestData]
+        public void AddGenericConvention([Frozen] Mock<IMapperConfiguration> configurationMock, Mapper.SetupMapping map)
+        {
             map.WithConvention<SameNameIgnoreCaseConvention>();
 
             configurationMock.Verify(x => x.AddConvention(It.IsAny<Func<PropertyInfo[], PropertyInfo[], IEnumerable<object>>>()), Times.Once);
         }
 
         [Theory, AutoTestData]
-        public void ShouldBePossibleToAddManualMapWithFromTo([Frozen] Mock<IMapperConfiguration> configurationMock, Mapper.SetupMapping map){
+        public void AddManualMapWithFromTo([Frozen] Mock<IMapperConfiguration> configurationMock, Mapper.SetupMapping map)
+        {
             map.FromTo<ClassAModel, ClassA>();
 
             configurationMock.Verify(x => x.AddMap(It.IsAny<Type>(), It.IsAny<Type>(), It.IsAny<IPropertyMap>()), Times.Once);
         }
 
         [Theory, AutoTestData]
-        public void ShouldBePossibleToAddManualMapWithFromAndThenTo([Frozen] Mock<IMapperConfiguration> configurationMock, Mapper.SetupMapping map){
+        public void AddManualMapWithFromAndThenTo([Frozen] Mock<IMapperConfiguration> configurationMock, Mapper.SetupMapping map)
+        {
             map.From<ClassAModel>().To<ClassA>();
 
             configurationMock.Verify(x => x.AddMap(It.IsAny<Type>(), It.IsAny<Type>(), It.IsAny<IPropertyMap>()), Times.Once);
         }
 
         [Theory, AutoTestData]
-        public void ShouldBePossibleToSetPropertiesToMapWithConventions([Frozen] Mock<IMapperConfiguration> configurationMock, Mapper.SetupMapping map){
+        public void SetPropertiesToMapWithConventions([Frozen] Mock<IMapperConfiguration> configurationMock, Mapper.SetupMapping map)
+        {
             ManualMap<ClassAModel, ClassA> manualMap = null;
 
             configurationMock.Setup(
                 x => x.AddMap(It.IsAny<Type>(), It.IsAny<Type>(), It.IsAny<IPropertyMap>()))
-                .Callback<Type, Type, IPropertyMap>((a,b,c) => manualMap = (ManualMap<ClassAModel, ClassA>) c);
+                .Callback<Type, Type, IPropertyMap>((a, b, c) => manualMap = (ManualMap<ClassAModel, ClassA>)c);
 
             map.FromTo<ClassAModel, ClassA>().Set(x => x.P1, x => x.P2);
-            
+
             Assert.Contains("P3", manualMap.IgnoreProperties);
             Assert.Contains("P4", manualMap.IgnoreProperties);
         }
 
         [Theory, AutoTestData]
-        public void ShouldBePossibleToSetPropertiesToIgnoreWhenMappingWithConventions([Frozen] Mock<IMapperConfiguration> configurationMock, Mapper.SetupMapping map){
+        public void SetPropertiesToIgnoreWhenMappingWithConventions([Frozen] Mock<IMapperConfiguration> configurationMock, Mapper.SetupMapping map)
+        {
             ManualMap<ClassAModel, ClassA> manualMap = null;
 
             configurationMock.Setup(
                 x => x.AddMap(It.IsAny<Type>(), It.IsAny<Type>(), It.IsAny<IPropertyMap>()))
-                .Callback<Type, Type, IPropertyMap>((a,b,c) => manualMap = (ManualMap<ClassAModel, ClassA>) c);
+                .Callback<Type, Type, IPropertyMap>((a, b, c) => manualMap = (ManualMap<ClassAModel, ClassA>)c);
 
             map.FromTo<ClassAModel, ClassA>().Ignore(x => x.P1, x => x.P2);
 
@@ -73,32 +83,36 @@ namespace SimpleMapper.Facts{
         }
 
         [Theory, AutoTestData]
-        public void ShouldBePossibleToSetManualMap([Frozen] Mock<IMapperConfiguration> configurationMock, Mapper.SetupMapping map){
+        public void SetManualMap([Frozen] Mock<IMapperConfiguration> configurationMock, Mapper.SetupMapping map)
+        {
             ManualMap<ClassAModel, ClassA> manualMap = null;
 
             configurationMock.Setup(
                 x => x.AddMap(It.IsAny<Type>(), It.IsAny<Type>(), It.IsAny<IPropertyMap>()))
-                .Callback<Type, Type, IPropertyMap>((a,b,c) => manualMap = (ManualMap<ClassAModel, ClassA>) c);
+                .Callback<Type, Type, IPropertyMap>((a, b, c) => manualMap = (ManualMap<ClassAModel, ClassA>)c);
 
             map.From<ClassAModel>().To<ClassA>()
-                .SetManually((s, d) =>{
-                                 d.P1 = s.P1;
-                                 d.P2 = s.P2;
-                                 d.P3 = s.P3;
-                             });
+                .SetManually((s, d) =>
+                {
+                    d.P1 = s.P1;
+                    d.P2 = s.P2;
+                    d.P3 = s.P3;
+                });
 
             Assert.NotNull(manualMap.ObjectMap);
         }
 
         [Theory, AutoTestData]
-        public void ShouldBePossibleToAddMapsForInheritedClassesWithIncludeFrom([Frozen] Mock<IMapperConfiguration> configurationMock, Mapper.SetupMapping map){
+        public void AddMapsForInheritedClassesWithIncludeFrom([Frozen] Mock<IMapperConfiguration> configurationMock, Mapper.SetupMapping map)
+        {
             map.From<ClassA>().To<ClassAModel>().IncludeFrom<ClassB>();
 
             configurationMock.Verify(x => x.AddMap(It.IsAny<Type>(), It.IsAny<Type>(), It.IsAny<IPropertyMap>()), Times.Exactly(2));
         }
 
         [Theory, AutoTestData]
-        public void ShouldBePossibleToAddMapsForInheritanceWithIncludeTo([Frozen] Mock<IMapperConfiguration> configurationMock, Mapper.SetupMapping map){
+        public void AddMapsForInheritanceWithIncludeTo([Frozen] Mock<IMapperConfiguration> configurationMock, Mapper.SetupMapping map)
+        {
             map.From<ClassAModel>().To<ClassA>().IncludeTo<ClassB>();
 
             configurationMock.Verify(x => x.AddMap(It.IsAny<Type>(), It.IsAny<Type>(), It.IsAny<IPropertyMap>()), Times.Exactly(2));
@@ -106,30 +120,32 @@ namespace SimpleMapper.Facts{
 
 
         [Theory, AutoTestData]
-        public void ShouldBePossibleToAddCustomConvention([Frozen] Mock<IMapperConfiguration> configurationMock, Mapper.SetupMapping map){
+        public void AddCustomConvention([Frozen] Mock<IMapperConfiguration> configurationMock, Mapper.SetupMapping map)
+        {
             ManualMap<ClassAModel, ClassA> manualMap = null;
 
             configurationMock.Setup(
                 x => x.AddMap(It.IsAny<Type>(), It.IsAny<Type>(), It.IsAny<IPropertyMap>()))
-                .Callback<Type, Type, IPropertyMap>((a,b,c) => manualMap = (ManualMap<ClassAModel, ClassA>) c);
+                .Callback<Type, Type, IPropertyMap>((a, b, c) => manualMap = (ManualMap<ClassAModel, ClassA>)c);
 
             map.From<ClassAModel>().To<ClassA>()
                 .WithCustomConvention((s, d) =>
                     from destination in d
                     join source in s on destination.Name.ToLower() equals source.Name.ToLower()
                     where source.CanRead && destination.CanWrite
-                    select new{source, destination});
+                    select new { source, destination });
 
             Assert.True(manualMap.Conventions.Count == 1);
         }
 
         [Theory, AutoTestData]
-        public void ShouldByPossibleToAddCustomConventionUsingGenerics([Frozen] Mock<IMapperConfiguration> configurationMock, Mapper.SetupMapping map){
+        public void AddCustomConventionUsingGenerics([Frozen] Mock<IMapperConfiguration> configurationMock, Mapper.SetupMapping map)
+        {
             ManualMap<ClassAModel, ClassA> manualMap = null;
 
             configurationMock.Setup(
                 x => x.AddMap(It.IsAny<Type>(), It.IsAny<Type>(), It.IsAny<IPropertyMap>()))
-                .Callback<Type, Type, IPropertyMap>((a,b,c) => manualMap = (ManualMap<ClassAModel, ClassA>) c);
+                .Callback<Type, Type, IPropertyMap>((a, b, c) => manualMap = (ManualMap<ClassAModel, ClassA>)c);
 
             map.From<ClassAModel>().To<ClassA>().WithCustomConvention<SameNameIgnoreCaseConvention>();
 
@@ -137,13 +153,14 @@ namespace SimpleMapper.Facts{
         }
 
         [Theory, AutoTestData]
-        public void ShouldBePossibleToAddCustomConversion([Frozen] Mock<IMapperConfiguration> configurationMock, Mapper.SetupMapping map){
-            
+        public void AddCustomConversion([Frozen] Mock<IMapperConfiguration> configurationMock, Mapper.SetupMapping map)
+        {
+
             ManualMap<ClassAModel, ClassA> manualMap = null;
 
             configurationMock.Setup(
                 x => x.AddMap(It.IsAny<Type>(), It.IsAny<Type>(), It.IsAny<IPropertyMap>()))
-                .Callback<Type, Type, IPropertyMap>((a,b,c) => manualMap = (ManualMap<ClassAModel, ClassA>) c);
+                .Callback<Type, Type, IPropertyMap>((a, b, c) => manualMap = (ManualMap<ClassAModel, ClassA>)c);
 
             map.From<ClassAModel>().To<ClassA>()
                 .WithCustomConversion<int, string>(i => i.ToString(CultureInfo.CurrentCulture));
@@ -152,9 +169,9 @@ namespace SimpleMapper.Facts{
         }
 
         //[Theory, AutoTestData]
-        //public void ShouldBePossibleToAddConventionFromMapper([Frozen] Mock<IMapperConfiguration> configurationMock,
+        //public void AddConventionFromMapper([Frozen] Mock<IMapperConfiguration> configurationMock,
         //    Mapper.SetupConfiguration configure) {
-            
+
         //    configure.WithConvention((s, d) =>
         //            from destination in d
         //            join source in s on destination.Name.ToLower() equals source.Name.ToLower()
@@ -162,22 +179,21 @@ namespace SimpleMapper.Facts{
         //            select new{source, destination});
 
         //    //PropertyInfo[], PropertyInfo[], IEnumerable<dynamic>
-            
+
         //    Assert.True(configurationMock.Verify(x => x.AddConvention(It.IsAny<PropertyInfo[]>(), It.IsAny<PropertyInfo[]>(), It.IsAny<IEnumerable<object>>()), Times.Once));
 
         //}
     }
 
-    public class ClassA{
-        public string P1 { get; set; }
-        public string P2 { get; set; }
-        public string P3 { get; set; }
-        public string P4 { get; set; }
-    }
 
-    public class ClassAModel{
-        public string P1 { get; set; }
-        public string P2 { get; set; }
-        public string P3 { get; set; }
+    public class CustomerMapper : Mapper
+    {
+        public CustomerMapper()
+        {
+            Map.From<Customer>().To<CustomerModel>().SetManually((customer, model) =>
+            {
+                model.Orders = string.Join(",", customer.Orders.Select(x => x.Name));
+            });
+        }
     }
 }

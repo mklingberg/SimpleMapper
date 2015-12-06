@@ -69,12 +69,46 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AutoTestDataAttribute.cs" />
-    <Compile Include="ConventionMapperFacts.cs" />
-    <Compile Include="ExtensionMethodFacts.cs" />
-    <Compile Include="FluentConfigurationTheories.cs" />
-    <Compile Include="InitializationFacts.cs" />
+    <Compile Include="AutoFixture\AutoTestDataAttribute.cs" />
+    <Compile Include="DefaultConfigurationShould.cs" />
+    <Compile Include="LambdaCompilerShould.cs" />
+    <Compile Include="UsingExtensionsToMapItShouldBePossibleTo.cs" />
+    <Compile Include="TestObjects\ClassA.cs" />
+    <Compile Include="TestObjects\ClassAModel.cs" />
+    <Compile Include="TestObjects\Customer.cs" />
+    <Compile Include="TestObjects\CustomerModel.cs" />
+    <Compile Include="TestObjects\Orders.cs" />
+    <Compile Include="UsingFluentConfigurationApiItShouldBePossibleTo.cs" />
+    <Compile Include="InitializationShould.cs" />
+    <Compile Include="PerformanceTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="TestObjects\BoolClassA.cs" />
+    <Compile Include="TestObjects\BoolClassAModel.cs" />
+    <Compile Include="TestObjects\ChildClass.cs" />
+    <Compile Include="TestObjects\ChildClassModel.cs" />
+    <Compile Include="TestObjects\ClassB.cs" />
+    <Compile Include="TestObjects\DateTimeClass.cs" />
+    <Compile Include="TestObjects\DateTimeClassDto.cs" />
+    <Compile Include="TestObjects\EntityA.cs" />
+    <Compile Include="TestObjects\EntityB.cs" />
+    <Compile Include="TestObjects\Enum1.cs" />
+    <Compile Include="TestObjects\Enum2.cs" />
+    <Compile Include="TestObjects\EnumEntityA.cs" />
+    <Compile Include="TestObjects\EnumEntityB.cs" />
+    <Compile Include="TestObjects\Manual.cs" />
+    <Compile Include="TestObjects\ManualDto.cs" />
+    <Compile Include="TestObjects\NumberClass.cs" />
+    <Compile Include="TestObjects\NumberClassDto.cs" />
+    <Compile Include="TestObjects\ParentClass.cs" />
+    <Compile Include="TestObjects\ParentClassModel.cs" />
+    <Compile Include="TestObjects\RecursiveClass1.cs" />
+    <Compile Include="TestObjects\RecursiveClass1Model.cs" />
+    <Compile Include="TestObjects\RecursiveClass2.cs" />
+    <Compile Include="TestObjects\RecursiveClass2Model.cs" />
+    <Compile Include="TestObjects\SameName.cs" />
+    <Compile Include="TestObjects\SameNameDto.cs" />
+    <Compile Include="TestObjects\TypeLookupModel.cs" />
+    <Compile Include="TypeConversionShould.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config">

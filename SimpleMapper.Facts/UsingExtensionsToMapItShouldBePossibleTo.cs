@@ -1,14 +1,16 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using SimpleMapper.Facts.AutoFixture;
+using SimpleMapper.Facts.TestObjects;
 using Xunit;
 using Xunit.Extensions;
 
 namespace SimpleMapper.Facts
 {
-    public class ExtensionMethodFacts
+    public class UsingExtensionsToMapItShouldBePossibleTo
     {
         [Theory, AutoTestData]
-        public void ShouldBePossibleToJustMapFromClassAToItsModelWithDefaultConvention(ClassA classA){
+        public void MapFromClassAToItsModelWithDefaultConvention(ClassA classA){
             var model = classA.MapTo<ClassAModel>();
 
             Assert.True(classA.P1 == model.P1);
@@ -17,13 +19,13 @@ namespace SimpleMapper.Facts
         }
 
         [Theory, AutoTestData]
-        public void ShouldBePossibleToMapFromExistingClass(P1Class p1, P1P4Model model){
+        public void MapFromExistingClass(P1Class p1, P1P4Model model){
             model.MapFrom(p1);
             Assert.True(p1.P1 == model.P1);
         }
 
         [Theory, AutoTestData]
-        public void ShouldBePossibleToMapFromExistingClasses(P1Class p1, P2Class p2, P1P4Model model){
+        public void MapFromExistingClasses(P1Class p1, P2Class p2, P1P4Model model){
             model.MapFrom(p1, p2);
 
             Assert.True(p1.P1 == model.P1);
@@ -31,7 +33,7 @@ namespace SimpleMapper.Facts
         }
 
         [Theory, AutoTestData]
-        public void ShouldBePossibleToMapAllFromList(List<P1Class> sources){
+        public void MapAllFromList(List<P1Class> sources){
             var models = sources.MapTo<P1P4Model>().ToList();
 
             for (var i = 0; i < sources.Count; i++){
