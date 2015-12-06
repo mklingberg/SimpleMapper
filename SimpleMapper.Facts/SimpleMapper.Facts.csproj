@@ -71,7 +71,7 @@
   <ItemGroup>
     <Compile Include="AutoFixture\AutoTestDataAttribute.cs" />
     <Compile Include="DefaultConfigurationShould.cs" />
-    <Compile Include="LambdaCompilerShould.cs" />
+    <Compile Include="UsingLambdaCompilerItShouldBePossibleTo.cs" />
     <Compile Include="UsingExtensionsToMapItShouldBePossibleTo.cs" />
     <Compile Include="TestObjects\ClassA.cs" />
     <Compile Include="TestObjects\ClassAModel.cs" />

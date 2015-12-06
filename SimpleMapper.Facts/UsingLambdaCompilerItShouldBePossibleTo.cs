@@ -5,7 +5,7 @@ using Xunit.Extensions;
 
 namespace SimpleMapper.Facts
 {
-    public class LambdaCompilerShould
+    public class UsingLambdaCompilerItShouldBePossibleTo
     {
         [Theory, AutoTestData]
         public void CreateGetter(ClassA classA)
