@@ -13,4 +13,19 @@ namespace SimpleMapper.Facts
             Assert.Equal(source.MapTo<SameNameDto>().SomeProperty, source.SomeProperty);
         }
     }
+
+    public class TestFluentConfiguration
+    {
+        [Theory, AutoData]
+        internal void VerifyIgnoreMapping(TestIgnore1 source)
+        {
+            Assert.NotEqual(source.MapTo<TestIgnore2>().MyProperty, source.MyProperty);
+        }
+
+        [Theory, AutoData]
+        internal void VerifyComplexConversionForInterfaces(WithNamedEntityProperty source, WithNamedEntityStringProperty destination)
+        {
+            Assert.Equal(source.MapTo<WithNamedEntityStringProperty>().NamedEntity, source.NamedEntity.Name);
+        }
+    }
 }

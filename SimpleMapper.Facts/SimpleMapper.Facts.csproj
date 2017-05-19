@@ -71,6 +71,15 @@
   <ItemGroup>
     <Compile Include="AutoFixture\AutoTestDataAttribute.cs" />
     <Compile Include="DefaultConfigurationShould.cs" />
+    <Compile Include="TestMappers\CustomerMapper.cs" />
+    <Compile Include="TestMappers\InterfaceToStringMapper.cs" />
+    <Compile Include="TestMappers\TestIgnoreMapper.cs" />
+    <Compile Include="TestObjects\INamedEntity.cs" />
+    <Compile Include="TestObjects\SomeNamedEntity.cs" />
+    <Compile Include="TestObjects\TestIgnore1.cs" />
+    <Compile Include="TestObjects\TestIgnore2.cs" />
+    <Compile Include="TestObjects\WithNamedEntityProperty.cs" />
+    <Compile Include="TestObjects\WithNamedEntityStringProperty.cs" />
     <Compile Include="UsingLambdaCompilerItShouldBePossibleTo.cs" />
     <Compile Include="UsingExtensionsToMapItShouldBePossibleTo.cs" />
     <Compile Include="TestObjects\ClassA.cs" />

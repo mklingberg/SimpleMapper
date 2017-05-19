@@ -1,3 +1,18 @@
+//  https://github.com/mklingberg/SimpleMapper
+//  Copyright © 2014 Marcus Klingberg and contributors
+
+//  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation 
+//  files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, 
+//  modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software 
+//  is furnished to do so, subject to the following conditions:
+
+//  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+//  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+//  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
+//  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS 
+//  IN THE SOFTWARE.
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -108,12 +123,14 @@ namespace SimpleMapper
 
             if (!targetListType.IsGenericType || targetListType.GetGenericArguments().Length != 1)
             {
-                throw new MapperException(string.Format("Could not perform list mapping for {0}, destinationtype must be generic with item type specified", targetListType.Name));
+                throw new MapperException(
+                    $"Could not perform list mapping for {targetListType.Name}, destinationtype must be generic with item type specified");
             }
 
             if (!sourceListType.IsGenericType || sourceListType.GetGenericArguments().Length != 1)
             {
-                throw new MapperException(string.Format("Could not perform list mapping for {0}, sourcetype must be generic with item type specified", sourceListType.Name));
+                throw new MapperException(
+                    $"Could not perform list mapping for {sourceListType.Name}, sourcetype must be generic with item type specified");
             }
 
             var sourceItemType = sourceListType.GetGenericArguments()[0];
@@ -145,7 +162,7 @@ namespace SimpleMapper
         internal void CreateMapAndInitialize(Type source, Type destination)
         {
             var type = typeof(ConventionMap<,>).MakeGenericType(source, destination);
-            var map = (IPropertyMap)(Configuration.DefaultActivator(type));
+            var map = (IPropertyMap) Configuration.DefaultActivator(type);
             map.Initialize();
             Configuration.Maps.Add(new KeyValuePair<Type, Type>(source, destination), map);
         }
@@ -173,7 +190,7 @@ namespace SimpleMapper
             if (Configuration.Maps.ContainsKey(key)) return Configuration.Maps[key];
 
             if (Configuration.CreateMissingMapsAutomaticly) CreateMapAndInitialize(sourceType, destinationType);
-            else throw new MapperException(string.Format("No map configured to map from {0} to {1}", sourceType.Name, destinationType.Name));
+            else throw new MapperException($"No map configured to map from {sourceType.Name} to {destinationType.Name}");
 
             return Configuration.Maps[key];
         }
@@ -244,44 +261,44 @@ namespace SimpleMapper
 
             Conventions.Concat(configuration.Conventions).ToList().ForEach(convention => conventionMap.AddRange(convention(sourceProperties, destinationProperties)));
 
-            conventionMap.ForEach(map =>
+            conventionMap.ForEach(item =>
             {
-                if (!map.source.CanRead) throw new MapperException(string.Format("Property to read from {0} has no getter!", map.source.Name));
-                if (!map.destination.CanWrite) throw new MapperException(string.Format("Property to write to {0} has no setter", map.destination.Name));
-                if (IgnoreProperties.Contains(map.destination.Name)) return;
+                if (!item.source.CanRead) throw new MapperException($"Property to read from {item.source.Name} has no getter!");
+                if (!item.destination.CanWrite) throw new MapperException($"Property to write to {item.destination.Name} has no setter");
+                if (IgnoreProperties.Contains(item.destination.Name)) return;
 
-                var getter = typeof(PropertyLookup.GetterInvoker<,>).MakeGenericType(typeof(TSource), map.source.PropertyType);
-                var setter = typeof(PropertyLookup.SetterInvoker<,>).MakeGenericType(typeof(TDestination), map.destination.PropertyType);
-                var item = new PropertyLookup
+                var getter = typeof(PropertyLookup.GetterInvoker<,>).MakeGenericType(typeof(TSource), item.source.PropertyType);
+                var setter = typeof(PropertyLookup.SetterInvoker<,>).MakeGenericType(typeof(TDestination), item.destination.PropertyType);
+                var lookup = new PropertyLookup
                 {
-                    Source = Activator.CreateInstance(getter, new object[] { map.source.Name }),
-                    Destination = Activator.CreateInstance(setter, new object[] { map.destination.Name })
+                    Source = Activator.CreateInstance(getter, new object[] { item.source.Name }),
+                    Destination = Activator.CreateInstance(setter, new object[] { item.destination.Name })
                 };
 
-                if (map.source.PropertyType != map.destination.PropertyType)
+                if (item.source.PropertyType != item.destination.PropertyType)
                 {
-                    item.Converter = GetConversion(new KeyValuePair<Type, Type>(map.source.PropertyType, map.destination.PropertyType));
+                    lookup.Converter = GetConversion(new KeyValuePair<Type, Type>(item.source.PropertyType, item.destination.PropertyType));
 
-                    if (item.Converter == null)
+                    if (lookup.Converter == null)
                     {
-                        if (map.source.PropertyType.IsPrimitive && map.destination.PropertyType.IsPrimitive)
-                            throw new MapperException(string.Format("Matched properties are not of same primitive type, {0}, {1}, and no conversion available!", map.source.PropertyType.Name, map.destination.PropertyType.Name));
+                        if (item.source.PropertyType.IsPrimitive && item.destination.PropertyType.IsPrimitive)
+                            throw new MapperException($"Matched properties are not of same primitive type, {item.source.PropertyType.Name}, {item.destination.PropertyType.Name}, and no conversion available!");
 
-                        if (typeof(Enum).IsAssignableFrom(map.source.PropertyType) && typeof(Enum).IsAssignableFrom(map.destination.PropertyType))
+                        if (typeof(Enum).IsAssignableFrom(item.source.PropertyType) && typeof(Enum).IsAssignableFrom(item.destination.PropertyType))
                         {
-                            item.Converter = (ITypeConverter)Activator.CreateInstance(typeof(EnumConversionContainer<>).MakeGenericType(map.destination.PropertyType));
+                            lookup.Converter = (ITypeConverter) Activator.CreateInstance(typeof(EnumConversionContainer<>).MakeGenericType(item.destination.PropertyType));
                         }
                         else
                         {
                             if (!configuration.ApplyConventionsRecursively) return;
-                            item.Converter = (ITypeConverter)Activator.CreateInstance(
-                                typeof(DifferentTypeConversionContainer<>).MakeGenericType(map.destination.PropertyType),
-                                new object[] { typeof(TSource).Name, map.source.Name, map.destination.Name });
+                            lookup.Converter = (ITypeConverter) Activator.CreateInstance(
+                                typeof(DifferentTypeConversionContainer<>).MakeGenericType(item.destination.PropertyType),
+                                new object[] { typeof(TSource).Name, item.source.Name, item.destination.Name });
                         }
                     }
                 }
 
-                propertyMap.Add(item);
+                propertyMap.Add(lookup);
             });
 
             map = propertyMap.Distinct().ToList(); //TODO: verify distinct behavior in this case...
@@ -289,8 +306,24 @@ namespace SimpleMapper
 
         private ITypeConverter GetConversion(KeyValuePair<Type, Type> key)
         {
-            if (Conversions.ContainsKey(key)) return Conversions[key];
-            return configuration.Conversions.ContainsKey(key) ? configuration.Conversions[key] : null;
+            var converter = GetConfiguredConversion(Conversions, key);
+
+            return converter ?? GetConfiguredConversion(configuration.Conversions, key);
+        }
+
+        private ITypeConverter GetConfiguredConversion(IDictionary<KeyValuePair<Type, Type>, ITypeConverter> conversions, KeyValuePair<Type, Type> key)
+        {
+            if (conversions == null) throw new ArgumentNullException(nameof(conversions));
+
+            if (conversions.ContainsKey(key)) return conversions[key];
+
+            foreach (var implementingInterface in key.Key.GetInterfaces())
+            {
+                var interfaceKey = new KeyValuePair<Type, Type>(implementingInterface, key.Value);
+                if (configuration.Conversions.ContainsKey(interfaceKey)) return configuration.Conversions[interfaceKey];
+            }
+
+            return null;
         }
 
         public virtual void Map(object source, object destination)
@@ -327,19 +360,17 @@ namespace SimpleMapper
         public Action<TSource, TDestination> ObjectMap { get; set; }
         public bool UseConventionMapping { get; internal set; }
 
-        protected IPropertyMap ConventionMap { get; set; }
-
         public ManualMap(Action<TSource, TDestination> map, bool useConventionMapping, IMapperConfiguration configuration) : base(configuration)
         {
             ObjectMap = map;
             UseConventionMapping = useConventionMapping;
-            ConventionMap = new ConventionMap<TSource, TDestination>();
         }
 
         public override void Initialize()
         {
             if (!UseConventionMapping) return;
-            ConventionMap.Initialize();
+
+            base.Initialize();
         }
 
         public override void Map(object source, object destination)
@@ -348,14 +379,17 @@ namespace SimpleMapper
             {
                 if (UseConventionMapping)
                 {
-                    ConventionMap.Map(source, destination);
+                    base.Map(source, destination);
                 }
+
+                if (ObjectMap == null) return;
 
                 ObjectMap((TSource)source, (TDestination)destination);
             }
             catch (Exception ex)
             {
-                throw new MapperException(string.Format("There was an error applying manual property map from {0} to {1} ", typeof(TSource).Name, typeof(TDestination).Name), ex);
+                throw new MapperException(
+                    $"There was an error applying manual property map from {typeof(TSource).Name} to {typeof(TDestination).Name} ", ex);
             }
         }
     }
@@ -382,7 +416,7 @@ namespace SimpleMapper
             }
             catch (Exception ex)
             {
-                throw new MapperException(string.Format("There was an error converting source {0} to {1}.", source.GetType().Name, typeof(TDestination).Name), ex);
+                throw new MapperException($"There was an error converting source {source.GetType().Name} to {typeof(TDestination).Name}.", ex);
             }
         }
     }
@@ -392,7 +426,8 @@ namespace SimpleMapper
         public object Convert(object source)
         {
             T destination;
-            if (!Enum.TryParse(source.ToString(), out destination)) throw new MapperException(string.Format("{0} is not valid member of enumeration {1}", source, typeof(T).Name));
+            if (!Enum.TryParse(source.ToString(), out destination)) throw new MapperException(
+                $"{source} is not valid member of enumeration {typeof(T).Name}");
             return destination;
         }
     }
@@ -413,7 +448,8 @@ namespace SimpleMapper
 
         public object Convert(object source)
         {
-            if (recursions >= MaxRecursions) throw new MapperException(string.Format("Could not map {0} to {1} on {2} because the traversed object graph contains a circular reference. Revise your object design, map it manually or add this property to the ignore list.", parentPropertyName, targetPropertyName, parentClassName));
+            if (recursions >= MaxRecursions) throw new MapperException(
+                $"Could not map {parentPropertyName} to {targetPropertyName} on {parentClassName} because the traversed object graph contains a circular reference. Revise your object design, map it manually or add this property to the ignore list.");
             recursions++;
 
             var enumerable = source as IEnumerable;
@@ -484,7 +520,8 @@ namespace SimpleMapper
         internal static Func<T> CreateActivator<T>(ConstructorInfo constructor = null)
         {
             constructor = constructor ?? typeof(T).GetConstructors().FirstOrDefault(x => x.GetParameters().Length == 0);
-            if (constructor == null) throw new MapperException(string.Format("Cant create destination object {0}, no parameterless constructor available!", typeof(T).Name));
+            if (constructor == null) throw new MapperException(
+                $"Cant create destination object {typeof(T).Name}, no parameterless constructor available!");
             return (Func<T>)Expression.Lambda(typeof(Func<T>), Expression.New(constructor)).Compile();
         }
     }
@@ -503,7 +540,10 @@ namespace SimpleMapper
     public class StaticContextContainer : IConfigurationContainer
     {
         private static MapperConfiguration currentConfiguration;
-        public MapperConfiguration Current { get { return currentConfiguration;} set { currentConfiguration = value; } }
+        public MapperConfiguration Current {
+            get => currentConfiguration;
+            set => currentConfiguration = value;
+        }
     }
 
     public interface IProxyTypeResolver
@@ -532,11 +572,6 @@ namespace SimpleMapper
 
         IMapperScanner Scanner { get; set; }
     }
-
-    //public interface IActivator
-    //{
-    //    object CreateInstance(Type type, params object[] args);
-    //}
 
     public class MapperConfiguration : IMapperConfiguration
     {
@@ -688,10 +723,10 @@ namespace SimpleMapper
             Configure = new SetupConfiguration(configuration);
         }
 
-        protected Mapper(IMapperConfiguration configuration)
-        {
-            this.configuration = configuration;
-        }
+        //protected Mapper(IMapperConfiguration configuration)
+        //{
+        //    this.configuration = configuration;
+        //}
 
         public SetupConfiguration Configure { get; protected set; }
 
@@ -768,16 +803,16 @@ namespace SimpleMapper
 
             public class SetupConventionsOnManual<TSource, TDestination> where TSource : class where TDestination : class
             {
-                private readonly ManualMap<TSource, TDestination> _map;
+                private readonly ManualMap<TSource, TDestination> map;
 
                 public SetupConventionsOnManual(ManualMap<TSource, TDestination> map)
                 {
-                    _map = map;
+                    this.map = map;
                 }
 
                 public void IgnoreConventions()
                 {
-                    _map.UseConventionMapping = false;
+                    map.UseConventionMapping = false;
                 }
             }
 
@@ -832,7 +867,7 @@ namespace SimpleMapper
 
                 internal SetupMap<TSource, TDestination> WithCustomConvention<T>() where T : IPropertyConvention
                 {
-                    try{
+                    try {
                         var convention = Activator.CreateInstance<T>();
                         map.Conventions.Add(convention.Map);
                     }

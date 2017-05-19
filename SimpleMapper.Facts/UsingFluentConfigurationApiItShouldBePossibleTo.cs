@@ -155,7 +155,6 @@ namespace SimpleMapper.Facts
         [Theory, AutoTestData]
         public void AddCustomConversion([Frozen] Mock<IMapperConfiguration> configurationMock, Mapper.SetupMapping map)
         {
-
             ManualMap<ClassAModel, ClassA> manualMap = null;
 
             configurationMock.Setup(
@@ -183,17 +182,5 @@ namespace SimpleMapper.Facts
         //    Assert.True(configurationMock.Verify(x => x.AddConvention(It.IsAny<PropertyInfo[]>(), It.IsAny<PropertyInfo[]>(), It.IsAny<IEnumerable<object>>()), Times.Once));
 
         //}
-    }
-
-
-    public class CustomerMapper : Mapper
-    {
-        public CustomerMapper()
-        {
-            Map.From<Customer>().To<CustomerModel>().SetManually((customer, model) =>
-            {
-                model.Orders = string.Join(",", customer.Orders.Select(x => x.Name));
-            });
-        }
     }
 }
