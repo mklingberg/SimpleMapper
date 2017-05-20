@@ -189,7 +189,7 @@ namespace SimpleMapper
 
             if (Configuration.Maps.ContainsKey(key)) return Configuration.Maps[key];
 
-            if (Configuration.CreateMissingMapsAutomaticly) CreateMapAndInitialize(sourceType, destinationType);
+            if (Configuration.CreateMissingMapsAutomatically) CreateMapAndInitialize(sourceType, destinationType);
             else throw new MapNotConfiguredException($"No map configured to map from {sourceType.Name} to {destinationType.Name}");
 
             return Configuration.Maps[key];
@@ -571,7 +571,7 @@ namespace SimpleMapper
     {
         Func<Type, object> DefaultActivator { get; set; }
 
-        bool CreateMissingMapsAutomaticly { get; set; }
+        bool CreateMissingMapsAutomatically { get; set; }
         bool ApplyConventionsRecursively { get; set; }
 
         bool ThrowExceptionsForMapsNotConfiguredApplyingConventionsRecursively { get; set; }
@@ -593,7 +593,7 @@ namespace SimpleMapper
     public class MapperConfiguration : IMapperConfiguration
     {
         public Func<Type, object> DefaultActivator { get; set; }
-        public bool CreateMissingMapsAutomaticly { get; set; }
+        public bool CreateMissingMapsAutomatically { get; set; }
         public bool ApplyConventionsRecursively { get; set; }
         public bool ThrowExceptionsForMapsNotConfiguredApplyingConventionsRecursively { get; set; }
         
@@ -990,7 +990,7 @@ namespace SimpleMapper
 
         public void Configure(MapperConfiguration configuration) {
 
-            configuration.CreateMissingMapsAutomaticly = true;
+            configuration.CreateMissingMapsAutomatically = true;
             configuration.ApplyConventionsRecursively = true;
             configuration.ThrowExceptionsForMapsNotConfiguredApplyingConventionsRecursively = false;
             configuration.DefaultActivator = Activator.CreateInstance;

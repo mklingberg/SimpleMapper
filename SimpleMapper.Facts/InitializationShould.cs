@@ -29,7 +29,7 @@ namespace SimpleMapper.Facts
     //        //ObjectMapper.Initialize(x =>
     //        //{
     //        //    x.DefaultActivator = ObjectFactory.GetInstance;
-    //        //    x.CreateMissingMapsAutomaticly = true;
+    //        //    x.CreateMissingMapsAutomatically = true;
     //        //    x.Scanner.ScanAssembliesContainingType<Customer>();
     //        //    x.Scanner.ScanAllAssembliesInBaseFolder = false;
     //        //});
@@ -46,11 +46,11 @@ namespace SimpleMapper.Facts
     //    //{
     //    //    ObjectMapper.Initialize(new MapperConfiguration
     //    //                           {
-    //    //                               CreateMissingMapsAutomaticly = true
+    //    //                               CreateMissingMapsAutomatically = true
     //    //                           });
 
     //    //    //Assert.Equal(ObjectMapper.CurrentConfiguration.DefaultActivator, null);
-    //    //    Assert.Equal(ObjectMapper.CurrentConfiguration.CreateMissingMapsAutomaticly, true);
+    //    //    Assert.Equal(ObjectMapper.CurrentConfiguration.CreateMissingMapsAutomatically, true);
     //    //}
 
     //    //[Theory, AutoData]
