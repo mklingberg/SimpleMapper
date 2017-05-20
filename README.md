@@ -42,7 +42,7 @@ SimpleMapper is initialized automatically if you just start mapping. If you want
 ObjectMapper.Initialize(x =>
 {
 	x.DefaultActivator = ObjectFactory.GetInstance;
-	x.CreateMissingMapsAutomaticly = true;
+	x.CreateMissingMapsAutomatically = true;
 	x.Scanner.ScanAssembliesContainingType<Customer>();
 	x.Scanner.ScanAllAssembliesInBaseFolder = false;
 });
