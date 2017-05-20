@@ -140,8 +140,8 @@ namespace SimpleMapper.Facts
             }
 
             var mapper = new ObjectMapper();
-
             mapper.CreateMap<EntityA, EntityB>();
+            mapper.Configuration.Scanner.Enabled = false;
             mapper.Configuration.Initialize();
 
             var timerSimpleMapper = new Stopwatch();

@@ -175,7 +175,7 @@ namespace SimpleMapper
         internal void Map(object source, object destination, IPropertyMap map = null)
         {
             if (source == null) return;
-            if (destination == null) throw new ApplicationException("Destination object must not be null");
+            if (destination == null) throw new ArgumentNullException(nameof(destination));
             if (map == null) map = GetMap(source.GetType(), destination.GetType());
 
             map.Map(source, destination);
@@ -190,7 +190,6 @@ namespace SimpleMapper
             if (Configuration.Maps.ContainsKey(key)) return Configuration.Maps[key];
 
             if (Configuration.CreateMissingMapsAutomaticly) CreateMapAndInitialize(sourceType, destinationType);
-            else throw new MapperException($"No map configured to map from {sourceType.Name} to {destinationType.Name}");
 
             return Configuration.Maps[key];
         }
@@ -336,7 +335,16 @@ namespace SimpleMapper
 
                     if (lookup.Converter != null)
                     {
-                        fromValue = lookup.Converter.Convert(fromValue);
+                        try
+                        {
+                            fromValue = lookup.Converter.Convert(fromValue);
+                        }
+                        catch (MapNotConfiguredException)
+                        {
+                            //Different type conversion could stumble upon not configured exception traversing graphs recursively. 
+                            //Remove this converter for the future
+                            lookup.Converter = null; 
+                        }
                     }
 
                     lookup.Destination.Set(destination, fromValue);
@@ -532,6 +540,12 @@ namespace SimpleMapper
         public MapperException(string message, Exception innerException) : base(message, innerException) { }
     }
 
+    public class MapNotConfiguredException : MapperException
+    {
+        public MapNotConfiguredException(string message) : base(message) { }
+        public MapNotConfiguredException(string message, Exception innerException) : base(message, innerException) { }
+    }
+
     public interface IConfigurationContainer
     {
         MapperConfiguration Current { get; set; }
@@ -602,11 +616,31 @@ namespace SimpleMapper
 
         internal IMapperConfiguration Initialize()
         {
-            Maps.Clear();
+            if (Scanner.Enabled)
+            {
+                FindAndActivateMappersToCreateMaps();
+            }
 
+            InitializeMaps();
+
+            IsInitialized = true;
+
+            return this;
+        }
+
+        private void InitializeMaps()
+        {
+            foreach (var map in Maps.Values)
+            {
+                map.Initialize();
+            }
+        }
+
+        private void FindAndActivateMappersToCreateMaps()
+        {
             var mapperTypes = Scanner.ScanForMappers();
 
-            if(DefaultActivator == null) throw new MapperException("No default activator configured, cant create mappers");
+            if (DefaultActivator == null) throw new MapperException("No default activator configured, cant create mappers");
 
             foreach (var type in mapperTypes.Where(x => typeof(Mapper).IsAssignableFrom(x)))
             {
@@ -619,15 +653,6 @@ namespace SimpleMapper
                     throw new MapperException("There was an error creating mapper " + type.Name, ex);
                 }
             }
-
-            foreach (var map in Maps.Values)
-            {
-                map.Initialize();
-            }
-
-            IsInitialized = true;
-
-            return this;
         }
 
         public IMapperConfiguration AddMap<TSource, TDestination>(Action<TSource, TDestination> map, bool useConventionMapping) where TSource : class where TDestination : class
@@ -675,11 +700,13 @@ namespace SimpleMapper
     {
         IMapperScanner ScanAssembliesContainingType<T>();
         bool ScanAllAssembliesInBaseFolder { get; set; }
+        bool Enabled { get; set; }
         IEnumerable<Type> ScanForMappers();
     }
 
     internal class MapperScanner : IMapperScanner
     {
+        public bool Enabled { get; set; } = true;
         private List<Assembly> Assemblies { get; }  = new List<Assembly>();
         public bool ScanAllAssembliesInBaseFolder { get; set; } = true;
 
@@ -751,7 +778,8 @@ namespace SimpleMapper
                 return this;
             }
 
-            public SetupConfiguration WithConversion<TSource, TDestination>(Func<TSource, TDestination> conversion){
+            public SetupConfiguration WithConversion<TSource, TDestination>(Func<TSource, TDestination> conversion)
+            {
                 Configuration.AddConversion(conversion);
                 return this;
             }
@@ -867,7 +895,8 @@ namespace SimpleMapper
 
                 internal SetupMap<TSource, TDestination> WithCustomConvention<T>() where T : IPropertyConvention
                 {
-                    try {
+                    try
+                    {
                         var convention = Activator.CreateInstance<T>();
                         map.Conventions.Add(convention.Map);
                     }
