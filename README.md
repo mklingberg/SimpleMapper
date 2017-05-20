@@ -33,6 +33,25 @@ public class CustomerMapper : Mapper
 
 ```
 
+## Convertions
+
+SimpleMapper uses convertions to handle mapping between entities with same name but different type. It has built in support for convertions between strings, dates, numbers, booleans and enums.
+You can provide custom convertions for complex types and interfaces used by your models. The example below adds a global convertion between an INamedEntity and a string.
+
+```csharp
+
+public class NamedEntityToStringMapper : Mapper
+{
+	public static readonly Func<INamedEntity, string> InterfaceToStringConversion = x => x.Name;
+
+	public InterfaceToStringMapper()
+	{
+		Configure.WithConversion(InterfaceToStringConversion);
+	}
+}
+
+```
+
 ## Initialization
 
 SimpleMapper is initialized automatically if you just start mapping. If you want to customize the behavior or create entity maps on application startup you can do so with ObjectMapper.Initialize.
