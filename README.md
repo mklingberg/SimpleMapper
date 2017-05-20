@@ -14,7 +14,7 @@ var model = Session.Get<Customer>(id).MapTo<CustomerModel>();
 
 Simply download SimpleMapper.cs and add it to your project. Available on NuGet soon...
 
-## Setup mapping
+## Mapping
 
 SimpleMapper supports convention based mapping, and aslong as you stick to a convention, you can map it automatically with SimpleMapper. When no convention applies its super easy to create a map manually using the fluent API and the Mapper base class.
 
@@ -52,25 +52,7 @@ public class NamedEntityToStringMapper : Mapper
 
 ```
 
-## Initialization
-
-SimpleMapper is initialized automatically if you just start mapping. If you want to customize the behavior or create entity maps on application startup you can do so with ObjectMapper.Initialize.
-
-```csharp
-
-ObjectMapper.Initialize(x =>
-{
-	x.DefaultActivator = ObjectFactory.GetInstance;
-	x.CreateMissingMapsAutomatically = true;
-	x.Scanner.ScanAssembliesContainingType<Customer>();
-	x.Scanner.ScanAllAssembliesInBaseFolder = false;
-});
-
-```
-
-By default SimpleMapper uses Activator.CreateInstance to create maps/classes. You can configure any IOContainer for dependency injection into your entity mappers using the DefaultActivator delegate shown above.
-
-## Conventions with LINQ
+## Conventions
 
 Custom conventions can easily be defined with LINQ.
 
@@ -88,6 +70,24 @@ public class SameNameIgnoreCaseConvention : IPropertyConvention
 }
 
 ```
+
+## Initialization
+
+SimpleMapper is initialized automatically if you just start mapping. If you want to customize the behavior or create entity maps on application startup you can do so with ObjectMapper.Initialize.
+
+```csharp
+
+ObjectMapper.Initialize(x =>
+{
+	x.DefaultActivator = ObjectFactory.GetInstance;
+	x.CreateMissingMapsAutomatically = true;
+	x.Scanner.ScanAssembliesContainingType<Customer>();
+	x.Scanner.ScanAllAssembliesInBaseFolder = false;
+});
+
+```
+
+By default SimpleMapper uses Activator.CreateInstance to create maps/classes. You can configure any IOContainer for dependency injection into your entity mappers using the DefaultActivator delegate shown above.
 
 ## Optimization
 
