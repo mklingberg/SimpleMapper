@@ -989,6 +989,7 @@ namespace SimpleMapper
         public static readonly Func<string, bool> StringToBoolConversion = s => bool.Parse(s);
 
         public void Configure(MapperConfiguration configuration) {
+            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
 
             configuration.CreateMissingMapsAutomatically = true;
             configuration.ApplyConventionsRecursively = true;
