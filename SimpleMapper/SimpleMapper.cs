@@ -610,10 +610,6 @@ namespace SimpleMapper
             Scanner = new MapperScanner();
             Conventions = new List<Func<PropertyInfo[], PropertyInfo[], IEnumerable<object>>>();
             Conversions = new Dictionary<KeyValuePair<Type, Type>, ITypeConverter>();
-            CreateMissingMapsAutomaticly = true;
-            ApplyConventionsRecursively = true;
-            ThrowExceptionsForMapsNotConfiguredApplyingConventionsRecursively = false;
-            DefaultActivator = Activator.CreateInstance;
 
             new DefaultConfiguration().Configure(this);
         }
@@ -993,6 +989,12 @@ namespace SimpleMapper
         public static readonly Func<string, bool> StringToBoolConversion = s => bool.Parse(s);
 
         public void Configure(MapperConfiguration configuration) {
+
+            configuration.CreateMissingMapsAutomaticly = true;
+            configuration.ApplyConventionsRecursively = true;
+            configuration.ThrowExceptionsForMapsNotConfiguredApplyingConventionsRecursively = false;
+            configuration.DefaultActivator = Activator.CreateInstance;
+
             configuration
                 .AddConvention<SameNameIgnoreCaseConvention>()
                 .AddConversion(DateToStringConversion)
