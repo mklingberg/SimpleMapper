@@ -190,6 +190,7 @@ namespace SimpleMapper
             if (Configuration.Maps.ContainsKey(key)) return Configuration.Maps[key];
 
             if (Configuration.CreateMissingMapsAutomaticly) CreateMapAndInitialize(sourceType, destinationType);
+            else throw new MapNotConfiguredException($"No map configured to map from {sourceType.Name} to {destinationType.Name}");
 
             return Configuration.Maps[key];
         }
@@ -341,9 +342,9 @@ namespace SimpleMapper
                         }
                         catch (MapNotConfiguredException)
                         {
-                            //Different type conversion could stumble upon not configured exception traversing graphs recursively. 
-                            //Remove this converter for the future
-                            lookup.Converter = null; 
+                            lookup.Converter = null;
+
+                            if (configuration.ThrowExceptionsForMapsNotConfiguredApplyingConventionsRecursively) throw;
                         }
                     }
 
@@ -573,6 +574,8 @@ namespace SimpleMapper
         bool CreateMissingMapsAutomaticly { get; set; }
         bool ApplyConventionsRecursively { get; set; }
 
+        bool ThrowExceptionsForMapsNotConfiguredApplyingConventionsRecursively { get; set; }
+
         IDictionary<KeyValuePair<Type, Type>, ITypeConverter> Conversions { get; }
         IDictionary<KeyValuePair<Type, Type>, IPropertyMap> Maps { get; }
         IList<Func<PropertyInfo[], PropertyInfo[], IEnumerable<object>>> Conventions { get; }
@@ -592,6 +595,8 @@ namespace SimpleMapper
         public Func<Type, object> DefaultActivator { get; set; }
         public bool CreateMissingMapsAutomaticly { get; set; }
         public bool ApplyConventionsRecursively { get; set; }
+        public bool ThrowExceptionsForMapsNotConfiguredApplyingConventionsRecursively { get; set; }
+        
         public IDictionary<KeyValuePair<Type, Type>, ITypeConverter> Conversions { get; }
         public IList<Func<PropertyInfo[], PropertyInfo[], IEnumerable<object>>> Conventions { get; }
         public IDictionary<KeyValuePair<Type, Type>, IPropertyMap> Maps { get; }
@@ -607,6 +612,7 @@ namespace SimpleMapper
             Conversions = new Dictionary<KeyValuePair<Type, Type>, ITypeConverter>();
             CreateMissingMapsAutomaticly = true;
             ApplyConventionsRecursively = true;
+            ThrowExceptionsForMapsNotConfiguredApplyingConventionsRecursively = false;
             DefaultActivator = Activator.CreateInstance;
 
             new DefaultConfiguration().Configure(this);
