@@ -7,10 +7,10 @@ namespace SimpleMapper.Facts.TestMappers
     {
         public CustomerMapper()
         {
-            Map.From<Customer>().To<CustomerModel>().SetManually((customer, model) =>
+            Map.From<Customer>().To<CustomerModel>().Set(x => x.Name).SetManually((customer, model) =>
             {
                 model.Orders = string.Join(",", customer.Orders.Select(x => x.Name));
-            });
+            }, x => x.Orders);
         }
     }
 }

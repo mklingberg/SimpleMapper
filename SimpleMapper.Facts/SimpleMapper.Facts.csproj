@@ -75,6 +75,7 @@
     <Compile Include="TestMappers\NamedEntityToStringMapper.cs" />
     <Compile Include="TestMappers\TestIgnoreMapper.cs" />
     <Compile Include="TestObjects\INamedEntity.cs" />
+    <Compile Include="TestObjects\MapperValidatorShould.cs" />
     <Compile Include="TestObjects\SomeNamedEntity.cs" />
     <Compile Include="TestObjects\TestIgnore1.cs" />
     <Compile Include="TestObjects\TestIgnore2.cs" />

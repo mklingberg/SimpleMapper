@@ -21,6 +21,7 @@ using System.Globalization;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Text;
 
 namespace SimpleMapper
 {
@@ -219,6 +220,7 @@ namespace SimpleMapper
         void Initialize();
         void Map(object source, object destination);
         object CreateUsingSpecializedActivator(object source);
+        IList<string> GetDestinationObjectPropertiesNotMapped();
     }
 
     public interface IPropertyConvention
@@ -239,6 +241,7 @@ namespace SimpleMapper
             IgnoreProperties = new List<string>();
             Conventions = new List<Func<PropertyInfo[], PropertyInfo[], IEnumerable<object>>>();
             Conversions = new Dictionary<KeyValuePair<Type, Type>, ITypeConverter>();
+            PropertiesSetByConvention = new List<string>();
         }
         
         public List<string> IgnoreProperties { get; set; }
@@ -246,6 +249,8 @@ namespace SimpleMapper
         internal Func<TDestination> SpecializedActivator { get; set; }
         public List<Func<PropertyInfo[], PropertyInfo[], IEnumerable<object>>> Conventions { get; set; }
         public Dictionary<KeyValuePair<Type, Type>, ITypeConverter> Conversions { get; set; }
+
+        protected List<string> PropertiesSetByConvention { get; set; }
 
         public virtual void Initialize()
         {
@@ -274,6 +279,8 @@ namespace SimpleMapper
                     Source = Activator.CreateInstance(getter, new object[] { item.source.Name }),
                     Destination = Activator.CreateInstance(setter, new object[] { item.destination.Name })
                 };
+
+                PropertiesSetByConvention.Add(item.destination.Name);
 
                 propertyMap.Add(lookup);
 
@@ -366,12 +373,21 @@ namespace SimpleMapper
             if (CustomActivator != null) return CustomActivator((TSource)source);
             return SpecializedActivator != null ? SpecializedActivator() : (object) null;
         }
+
+        public virtual IList<string> GetDestinationObjectPropertiesNotMapped()
+        {
+            var mappedProperties = PropertiesSetByConvention;
+            var objectProperties = typeof(TDestination).GetProperties().Select(x => x.Name);
+            return objectProperties.Where(property => !mappedProperties.Contains(property) && !IgnoreProperties.Contains(property)).ToList();
+        }
     }
 
     public class ManualMap<TSource, TDestination> : ConventionMap<TSource, TDestination>
     {
         public Action<TSource, TDestination> ObjectMap { get; set; }
         public bool UseConventionMapping { get; internal set; }
+
+        public List<string> PropertiesSetManually { get; set; } = new List<string>();
 
         public ManualMap(Action<TSource, TDestination> map, bool useConventionMapping, IMapperConfiguration configuration) : base(configuration)
         {
@@ -404,6 +420,17 @@ namespace SimpleMapper
                 throw new MapperException(
                     $"There was an error applying manual property map from {typeof(TSource).Name} to {typeof(TDestination).Name} ", ex);
             }
+        }
+
+        public override IList<string> GetDestinationObjectPropertiesNotMapped()
+        {
+            var mappedProperties = new List<string>();
+            mappedProperties.AddRange(PropertiesSetByConvention);
+            mappedProperties.AddRange(PropertiesSetManually);
+
+            var objectProperties = typeof(TDestination).GetProperties().Select(x => x.Name);
+
+            return objectProperties.Where(property => !mappedProperties.Contains(property) && !IgnoreProperties.Contains(property)).ToList();
         }
     }
 
@@ -461,7 +488,7 @@ namespace SimpleMapper
 
         public object Convert(object source)
         {
-            if (recursions >= MaxRecursions) throw new MapperException(
+            if (recursions >= MaxRecursions) throw new CircularReferenceException(
                 $"Could not map {parentPropertyName} to {targetPropertyName} on {parentClassName} because the traversed object graph contains a circular reference. Revise your object design, map it manually or add this property to the ignore list.");
             recursions++;
 
@@ -547,8 +574,17 @@ namespace SimpleMapper
 
     public class MapNotConfiguredException : MapperException
     {
-        public MapNotConfiguredException(string message) : base(message) { }
-        public MapNotConfiguredException(string message, Exception innerException) : base(message, innerException) { }
+        public MapNotConfiguredException(string message) : base(message){ }
+    }
+
+    public class CircularReferenceException : MapperException
+    {
+        public CircularReferenceException(string message) : base(message) { }
+    }
+
+    public class SomePropertiesNotMappedException : MapperException
+    {
+        public SomePropertiesNotMappedException(string message) : base(message) { }
     }
 
     public interface IConfigurationContainer
@@ -592,6 +628,7 @@ namespace SimpleMapper
         IMapperConfiguration AddConversion<TSource, TDestination>(Func<TSource, TDestination> conversion);
 
         IMapperScanner Scanner { get; set; }
+        void AssertAllPropertiesMappedOnDestinationObjects();
     }
 
     public class MapperConfiguration : IMapperConfiguration
@@ -700,6 +737,30 @@ namespace SimpleMapper
         }
 
         public IList<IProxyTypeResolver> ProxyTypeResolvers { get; protected set; }
+
+        public void AssertAllPropertiesMappedOnDestinationObjects()
+        {
+            if(!IsInitialized) throw new MapperException("Configuration must be initialized before we can assert the mapping.");
+            
+            var exceptionMessageBuilder = new StringBuilder();
+
+            foreach (var keyValuePair in Maps)
+            {
+                var propertiesNotMapped = keyValuePair.Value.GetDestinationObjectPropertiesNotMapped();
+                if(!propertiesNotMapped.Any()) continue;
+
+                exceptionMessageBuilder.AppendLine($"The propertie(s) '{string.Join(", '", propertiesNotMapped)}' was not mapped on '{keyValuePair.Key.Value}'.");
+            }
+
+            if (exceptionMessageBuilder.Length <= 0) return;
+
+            exceptionMessageBuilder.AppendLine("NOTE:");
+            exceptionMessageBuilder.AppendLine(
+                "If some of these properties should not be mapped then they must be added to the ignore propertylist on the entity map.");
+            exceptionMessageBuilder.AppendLine(
+                "If some of these properties are mapped with the 'SetManually' delegate then they should also be set as mapped manually using the params parameter on this function.");
+            throw new SomePropertiesNotMappedException(exceptionMessageBuilder.ToString());
+        }
     }
     
     public interface IMapperScanner
@@ -920,9 +981,19 @@ namespace SimpleMapper
                     return this;
                 }
 
-                public SetupConventionsOnManual<TSource, TDestination> SetManually(Action<TSource, TDestination> map)
+                /// <summary>
+                /// Map however you want using a delegate. If your using validation, then all properties mapped manually must also be set with the properties parameter.
+                /// </summary>
+                /// <param name="map">Mapping delegate.</param>
+                /// <param name="properties">Declare all properties that you have mapped manually (used in conjunction with the assert feature). </param>
+                /// <returns></returns>
+                public SetupConventionsOnManual<TSource, TDestination> SetManually(Action<TSource, TDestination> map, params Expression<Func<TDestination, object>>[] properties)
                 {
                     this.map.ObjectMap = map;
+                    if (properties != null)
+                    {
+                        this.map.PropertiesSetManually.AddRange(properties.Select(GetPropertyNameFromLambda)); 
+                    }
                     return new SetupConventionsOnManual<TSource, TDestination>(this.map);
                 }
 
