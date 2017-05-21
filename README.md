@@ -87,7 +87,20 @@ ObjectMapper.Initialize(x =>
 
 ```
 
-By default SimpleMapper uses Activator.CreateInstance to create maps/classes. You can configure any IOContainer for dependency injection into your entity mappers using the DefaultActivator delegate shown above.
+By default SimpleMapper uses Activator.CreateInstance to create maps/classes. You can configure any IoContainer for dependency injection into your entity mappers using the DefaultActivator delegate shown above.
+
+
+## Verification
+
+It possible to assert that all maps are valid. This means that all properties on destination objects are either mapped or included in the ignore property list. To trigger validation you need to
+initialize SimpleMapper in a unit test and then run AssertAllPropertiesMappedOnDestinationObjects() on the configuration object.
+
+```csharp
+
+<ObjectMapper>.Configuration.AssertAllPropertiesMappedOnDestinationObjects();
+
+```
+
 
 ## Optimization
 
