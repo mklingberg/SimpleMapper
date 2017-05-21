@@ -985,12 +985,17 @@ namespace SimpleMapper
 
     public class DefaultConfiguration
     {
+        public const int IntTrueValue = 1;
+        public const int IntFalseValue = 0;
+
         public static readonly Func<DateTime, string> DateToStringConversion = time => time.ToString(CultureInfo.CurrentUICulture);
         public static readonly Func<string, DateTime> StringToDateConversion = s => DateTime.Parse(s);
         public static readonly Func<int, string> IntToStringConversion = i => i.ToString(CultureInfo.CurrentCulture);
         public static readonly Func<string, int> StringToIntConversion = s => int.Parse(s);
         public static readonly Func<bool, string> BoolToStringConversion = b => b.ToString();
         public static readonly Func<string, bool> StringToBoolConversion = s => bool.Parse(s);
+        public static readonly Func<int, bool> IntToBoolConversion = i => i >= IntTrueValue;
+        public static readonly Func<bool, int> BoolToIntConversion = b => b ? IntTrueValue : IntFalseValue;
 
         public void Configure(MapperConfiguration configuration) {
             if (configuration == null) throw new ArgumentNullException(nameof(configuration));
@@ -1007,7 +1012,9 @@ namespace SimpleMapper
                 .AddConversion(IntToStringConversion)
                 .AddConversion(StringToIntConversion)
                 .AddConversion(BoolToStringConversion)
-                .AddConversion(StringToBoolConversion);
+                .AddConversion(StringToBoolConversion)
+                .AddConversion(IntToBoolConversion)
+                .AddConversion(BoolToIntConversion);
         }
     }
 }
