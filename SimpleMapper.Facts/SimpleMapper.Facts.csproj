@@ -72,7 +72,7 @@
     <Compile Include="AutoFixture\AutoTestDataAttribute.cs" />
     <Compile Include="DefaultConfigurationShould.cs" />
     <Compile Include="TestMappers\CustomerMapper.cs" />
-    <Compile Include="TestMappers\InterfaceToStringMapper.cs" />
+    <Compile Include="TestMappers\NamedEntityToStringMapper.cs" />
     <Compile Include="TestMappers\TestIgnoreMapper.cs" />
     <Compile Include="TestObjects\INamedEntity.cs" />
     <Compile Include="TestObjects\SomeNamedEntity.cs" />

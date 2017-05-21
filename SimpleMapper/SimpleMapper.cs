@@ -279,27 +279,33 @@ namespace SimpleMapper
 
                 if (item.source.PropertyType == item.destination.PropertyType) return;
 
-                lookup.Converter = GetConversion(new KeyValuePair<Type, Type>(item.source.PropertyType, item.destination.PropertyType));
-
-                if (lookup.Converter != null) return;
-
-                if (item.source.PropertyType.IsPrimitive && item.destination.PropertyType.IsPrimitive)
-                    throw new MapperException($"Matched properties are not of same primitive type, {item.source.PropertyType.Name}, {item.destination.PropertyType.Name}, and no conversion available!");
-
-                if (typeof(Enum).IsAssignableFrom(item.source.PropertyType) && typeof(Enum).IsAssignableFrom(item.destination.PropertyType))
-                {
-                    lookup.Converter = (ITypeConverter) Activator.CreateInstance(typeof(EnumConversionContainer<>).MakeGenericType(item.destination.PropertyType));
-                    return;
-                }
- 
-                if (!configuration.ApplyConventionsRecursively) return;
-
-                lookup.Converter = (ITypeConverter) Activator
-                            .CreateInstance(typeof(DifferentTypeConversionContainer<>)
-                            .MakeGenericType(item.destination.PropertyType), new object[] { typeof(TSource).Name, item.source.Name, item.destination.Name });
+                lookup.Converter = BuildTypeConverter(item);
             });
 
             map = propertyMap.Distinct().ToList(); //TODO: verify distinct behavior in this case...
+        }
+
+        private ITypeConverter BuildTypeConverter(dynamic item)
+        {
+            var converter = GetConversion(new KeyValuePair<Type, Type>(item.source.PropertyType, item.destination.PropertyType));
+
+            if (converter != null) return converter;
+
+            if (item.source.PropertyType.IsPrimitive && item.destination.PropertyType.IsPrimitive)
+                throw new MapperException(
+                    $"Matched properties are not of same primitive type, {item.source.PropertyType.Name}, {item.destination.PropertyType.Name}, and no conversion available!");
+
+            if (typeof(Enum).IsAssignableFrom(item.source.PropertyType) &&
+                typeof(Enum).IsAssignableFrom(item.destination.PropertyType))
+            {
+                return (ITypeConverter) Activator.CreateInstance(
+                        typeof(EnumConversionContainer<>).MakeGenericType(item.destination.PropertyType));
+            }
+
+            if (!configuration.ApplyConventionsRecursively) return null;
+
+            return (ITypeConverter) Activator.CreateInstance(typeof(DifferentTypeConversionContainer<>)
+                        .MakeGenericType(item.destination.PropertyType), new object[] {typeof(TSource).Name, item.source.Name, item.destination.Name});
         }
 
         private ITypeConverter GetConversion(KeyValuePair<Type, Type> key)

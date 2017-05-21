@@ -3,11 +3,11 @@ using SimpleMapper.Facts.TestObjects;
 
 namespace SimpleMapper.Facts.TestMappers
 {
-    public class InterfaceToStringMapper : Mapper
+    public class NamedEntityToStringMapper : Mapper
     {
         public static readonly Func<INamedEntity, string> InterfaceToStringConversion = x => x.Name;
 
-        public InterfaceToStringMapper()
+        public NamedEntityToStringMapper()
         {
             Configure.WithConversion(InterfaceToStringConversion);
         }
