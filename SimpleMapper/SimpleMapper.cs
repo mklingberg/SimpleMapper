@@ -116,26 +116,24 @@ namespace SimpleMapper
             }
         }
 
+        internal static Type GetTargetTypeUnboxFromEnumerable(Type destination)
+        {
+            if (!typeof(IEnumerable).IsAssignableFrom(destination)) return destination;
+
+            if (!destination.IsGenericType || destination.GetGenericArguments().Length != 1)
+            {
+                throw new MapperException(
+                    $"Could not perform list mapping for {destination.Name}, destinationtype must be generic with item type specified");
+            }
+
+            return destination.GetGenericArguments()[0];
+        }
+
         public object MapManyAsList<TDestination>(IEnumerable source) where TDestination : class
         {
             var enumerable = source as object[] ?? source.Cast<object>().ToArray();
-            var targetListType = typeof(TDestination);
-            var sourceListType = source.GetType();
-
-            if (!targetListType.IsGenericType || targetListType.GetGenericArguments().Length != 1)
-            {
-                throw new MapperException(
-                    $"Could not perform list mapping for {targetListType.Name}, destinationtype must be generic with item type specified");
-            }
-
-            if (!sourceListType.IsGenericType || sourceListType.GetGenericArguments().Length != 1)
-            {
-                throw new MapperException(
-                    $"Could not perform list mapping for {sourceListType.Name}, sourcetype must be generic with item type specified");
-            }
-
-            var sourceItemType = sourceListType.GetGenericArguments()[0];
-            var destinationItemType = targetListType.GetGenericArguments()[0];
+            var sourceItemType = GetTargetTypeUnboxFromEnumerable(source.GetType());
+            var destinationItemType = GetTargetTypeUnboxFromEnumerable(typeof(TDestination));
 
             var map = GetMap(sourceItemType, destinationItemType);
             var list = (IList)Activator.CreateInstance(typeof(TDestination).IsInterface ? typeof(List<>).MakeGenericType(destinationItemType) : typeof(TDestination), enumerable.Length);
@@ -280,19 +278,19 @@ namespace SimpleMapper
                     Destination = Activator.CreateInstance(setter, new object[] { item.destination.Name })
                 };
 
+                if (item.source.PropertyType != item.destination.PropertyType)
+                {
+                    lookup.Converter = CreateTypeConverter(item);
+                }
+
                 PropertiesSetByConvention.Add(item.destination.Name);
-
                 propertyMap.Add(lookup);
-
-                if (item.source.PropertyType == item.destination.PropertyType) return;
-
-                lookup.Converter = BuildTypeConverter(item);
             });
 
             map = propertyMap.Distinct().ToList(); //TODO: verify distinct behavior in this case...
         }
 
-        private ITypeConverter BuildTypeConverter(dynamic item)
+        private ITypeConverter CreateTypeConverter(dynamic item)
         {
             var converter = GetConversion(new KeyValuePair<Type, Type>(item.source.PropertyType, item.destination.PropertyType));
 
@@ -305,14 +303,22 @@ namespace SimpleMapper
             if (typeof(Enum).IsAssignableFrom(item.source.PropertyType) &&
                 typeof(Enum).IsAssignableFrom(item.destination.PropertyType))
             {
-                return (ITypeConverter) Activator.CreateInstance(
-                        typeof(EnumConversionContainer<>).MakeGenericType(item.destination.PropertyType));
+                return (ITypeConverter) Activator.CreateInstance(typeof(EnumConversionContainer<>).MakeGenericType(item.destination.PropertyType));
             }
 
-            if (!configuration.ApplyConventionsRecursively) return null;
+            var destinationPropertyType = ObjectMapper.GetTargetTypeUnboxFromEnumerable(item.destination.PropertyType);
+            var key = new KeyValuePair<Type, Type>(item.source.PropertyType, destinationPropertyType);
 
-            return (ITypeConverter) Activator.CreateInstance(typeof(DifferentTypeConversionContainer<>)
-                        .MakeGenericType(item.destination.PropertyType), new object[] {typeof(TSource).Name, item.source.Name, item.destination.Name});
+            if (configuration.Maps.ContainsKey(key) || configuration.CreateMissingMapsAutomatically)
+            {
+                return (ITypeConverter) Activator.CreateInstance(typeof(DifferentTypeConversionContainer<>)
+                    .MakeGenericType(item.destination.PropertyType), new object[] { typeof(TSource).Name, item.source.Name, item.destination.Name });
+            }
+
+            throw new MapNotConfiguredException(
+$@"The property {typeof(TDestination).Name}.{item.destination.Name} was matched by convention from {typeof(TSource).Name}.{item.source.Name}. 
+There is no map available from {item.source.PropertyType.Name} to {item.destination.PropertyType.Name}. 
+You should either configure this mapping or add this property to the ignore list.");
         }
 
         private ITypeConverter GetConversion(KeyValuePair<Type, Type> key)
@@ -347,16 +353,7 @@ namespace SimpleMapper
 
                     if (lookup.Converter != null)
                     {
-                        try
-                        {
-                            fromValue = lookup.Converter.Convert(fromValue);
-                        }
-                        catch (MapNotConfiguredException)
-                        {
-                            lookup.Converter = null;
-
-                            if (configuration.ThrowExceptionsForMapsNotConfiguredApplyingConventionsRecursively) throw;
-                        }
+                        fromValue = lookup.Converter.Convert(fromValue);
                     }
 
                     lookup.Destination.Set(destination, fromValue);
@@ -612,9 +609,6 @@ namespace SimpleMapper
         Func<Type, object> DefaultActivator { get; set; }
 
         bool CreateMissingMapsAutomatically { get; set; }
-        bool ApplyConventionsRecursively { get; set; }
-
-        bool ThrowExceptionsForMapsNotConfiguredApplyingConventionsRecursively { get; set; }
 
         IDictionary<KeyValuePair<Type, Type>, ITypeConverter> Conversions { get; }
         IDictionary<KeyValuePair<Type, Type>, IPropertyMap> Maps { get; }
@@ -635,8 +629,6 @@ namespace SimpleMapper
     {
         public Func<Type, object> DefaultActivator { get; set; }
         public bool CreateMissingMapsAutomatically { get; set; }
-        public bool ApplyConventionsRecursively { get; set; }
-        public bool ThrowExceptionsForMapsNotConfiguredApplyingConventionsRecursively { get; set; }
         
         public IDictionary<KeyValuePair<Type, Type>, ITypeConverter> Conversions { get; }
         public IList<Func<PropertyInfo[], PropertyInfo[], IEnumerable<object>>> Conventions { get; }
@@ -816,11 +808,6 @@ namespace SimpleMapper
             Map = new SetupMapping(configuration);
             Configure = new SetupConfiguration(configuration);
         }
-
-        //protected Mapper(IMapperConfiguration configuration)
-        //{
-        //    this.configuration = configuration;
-        //}
 
         public SetupConfiguration Configure { get; protected set; }
 
@@ -1072,8 +1059,6 @@ namespace SimpleMapper
             if (configuration == null) throw new ArgumentNullException(nameof(configuration));
 
             configuration.CreateMissingMapsAutomatically = true;
-            configuration.ApplyConventionsRecursively = true;
-            configuration.ThrowExceptionsForMapsNotConfiguredApplyingConventionsRecursively = false;
             configuration.DefaultActivator = Activator.CreateInstance;
 
             configuration

@@ -1,11 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Ploeh.AutoFixture.Xunit;
-using Xunit;
-using Xunit.Extensions;
+﻿using Xunit;
 
 namespace SimpleMapper.Facts.TestObjects
 {
@@ -74,11 +67,29 @@ namespace SimpleMapper.Facts.TestObjects
 
             configuration.AssertAllPropertiesMappedOnDestinationObjects();
         }
+
+        [Fact]
+        public void ThrowExceptionOnInitializeForMissingTypeMapWithAutomapDisabled()
+        {
+            var configuration = new MapperConfiguration { Scanner = { Enabled = false }, CreateMissingMapsAutomatically = false };
+
+            var setupMap = new Mapper.SetupMapping(configuration);
+            configuration.AddConvention<SameNameIgnoreCaseConvention>();
+
+            setupMap.FromTo<ValidatorTest1, ValidatorTest1Model>().SetManually((s, d) => {
+                d.OtherProperty = "Hejsan";
+            }, x => x.OtherProperty);
+
+            Assert.Throws<MapNotConfiguredException>(() => configuration.Initialize());
+            Assert.Throws<MapperException>(() => configuration.AssertAllPropertiesMappedOnDestinationObjects());
+        }
     }
 
     public class ValidatorTest1
     {
         public string Name { get; set; }
+
+        public Customer Customer { get; set; }
 
     }
 
@@ -86,6 +97,8 @@ namespace SimpleMapper.Facts.TestObjects
     {
         public string Name { get; set; }
         public string OtherProperty { get; set; }
+
+        public CustomerModel Customer { get; set; }
 
     }
 }

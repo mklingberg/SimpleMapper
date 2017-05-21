@@ -8,7 +8,7 @@ namespace SimpleMapper.Facts
     public class DefaultConfigurationShould
     {
         [Theory, AutoData]
-        internal void HaveBuiltinSameNameConvention(SameName source)
+        public void HaveBuiltinSameNameConvention(SameName source)
         {
             Assert.Equal(source.MapTo<SameNameDto>().SomeProperty, source.SomeProperty);
         }
@@ -17,13 +17,13 @@ namespace SimpleMapper.Facts
     public class TestFluentConfiguration
     {
         [Theory, AutoData]
-        internal void VerifyIgnoreMapping(TestIgnore1 source)
+        public void VerifyIgnoreMapping(TestIgnore1 source)
         {
             Assert.NotEqual(source.MapTo<TestIgnore2>().MyProperty, source.MyProperty);
         }
 
         [Theory, AutoData]
-        internal void VerifyComplexConversionForInterfaces(WithNamedEntityProperty source, WithNamedEntityStringProperty destination)
+        public void VerifyComplexConversionForInterfaces(WithNamedEntityProperty source, WithNamedEntityStringProperty destination)
         {
             Assert.Equal(source.MapTo<WithNamedEntityStringProperty>().NamedEntity, source.NamedEntity.Name);
         }
