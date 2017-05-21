@@ -92,7 +92,7 @@ By default SimpleMapper uses Activator.CreateInstance to create maps/classes. Yo
 
 ## Verification
 
-It possible to assert that all maps are valid. This means that all properties on destination objects are either mapped or included in the ignore property list. To trigger validation you need to
+It's possible to assert that all maps are valid. This means that all properties on destination objects are either mapped or included in the ignore property list. To trigger validation you need to
 initialize SimpleMapper in a unit test and then run AssertAllPropertiesMappedOnDestinationObjects() on the configuration object.
 
 ```csharp
